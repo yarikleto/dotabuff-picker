@@ -1,0 +1,51 @@
+{
+  "name": "dotabuff-picker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Dota 2 draft assistant powered by Dotabuff matchup data",
+  "license": "MIT",
+  "homepage": "https://yarikleto.github.io/dotabuff-picker/",
+  "repository": "github:yarikleto/dotabuff-picker",
+  "author": {
+    "name": "Yarik",
+    "email": "15263107+yarikleto@users.noreply.github.com"
+  },
+  "main": "electron/main.mjs",
+  "scripts": {
+    "dev": "vite",
+    "desktop": "node scripts/desktop-dev.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder",
+    "dist:dir": "npm run build && electron-builder --dir",
+    "dist:all": "npm run build && electron-builder -mwl",
+    "typecheck": "tsc -b --force",
+    "refresh": "node scripts/refresh.mjs",
+    "roster": "node scripts/roster.mjs",
+    "scrape": "node scripts/scrape.mjs",
+    "scrape:force": "node scripts/scrape.mjs --force",
+    "images": "node scripts/scrape.mjs --images-only",
+    "positions": "node scripts/positions.mjs",
+    "synergy": "node scripts/synergy.mjs",
+    "timings": "node scripts/timings.mjs",
+    "lanes": "node scripts/lanes.mjs",
+    "readme": "node scripts/readme.mjs",
+    "readme:images": "npm run build && electron scripts/readme-images.mjs",
+    "test": "node --test scripts/*.test.mjs electron/*.test.mjs && node --test --experimental-strip-types --import ./scripts/register-ts-resolve.mjs src/lib/*.test.ts"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^6.0.5",
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
+    "jsdom": "^30.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^8.2.1"
+  }
+}

@@ -1,0 +1,3361 @@
+:root {
+  --bg: #0f1419;
+
+  /*
+   * Surfaces are translucent, so whatever is behind the window shows faintly
+   * through them and the panes read as glass rather than as boxes. They keep
+   * the four names the rest of this sheet already used, which is why nothing
+   * downstream had to change: every panel, tile and chip inherited the
+   * material. The blur that completes the effect is applied to panes only —
+   * see the last section of this file.
+   */
+  --bg-raised: rgba(226, 238, 255, 0.1);
+  --bg-tile: rgba(226, 238, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.14);
+  --line-soft: rgba(255, 255, 255, 0.08);
+  --text: #dfe6ee;
+  --text-dim: #8a97a6;
+
+  --mine: #38b45f;
+  --mine-soft: rgba(56, 180, 95, 0.16);
+  --enemy: #e0483d;
+  --enemy-soft: rgba(224, 72, 61, 0.16);
+  --banned: #64707d;
+  --banned-soft: rgba(100, 112, 125, 0.14);
+
+  /*
+   * The two ban benches. Deliberately tinted towards the team colours rather
+   * than given colours of their own: a ban is still a ban — grey — and the tint
+   * only says whose hand it came from. Anything louder would compete with the
+   * pick colours, which are the ones that describe the board.
+   */
+  --ban-mine: #4c8a63;
+  --ban-enemy: #9c6058;
+  /* The one thing on screen that is an inference about a person, not a fact. */
+  --intent: #c9a227;
+  --intent-soft: rgba(201, 162, 39, 0.14);
+
+  --good: #4ec46f;
+  --bad: #e2685e;
+
+  /* Position accents: cores warm, supports cool. */
+  --pos-1: #e2a33d;
+  --pos-2: #e0673d;
+  --pos-3: #b96fd6;
+  --pos-4: #4aa8e0;
+  --pos-5: #46c9b4;
+
+  --str: #e26a4a;
+  --agi: #62c05a;
+  --int: #4aa8e0;
+  --uni: #c48ae0;
+
+  --radius: 12px;
+  --tile-w: 84px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  /*
+   * Not a flat fill: glass needs something to be glass against. Two very faint
+   * blooms in the team colours — mine on the left where my panel is, theirs on
+   * the right — over a vertical fall from slate to near-black.
+   */
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(46rem 30rem at 4% -10%, rgba(56, 180, 95, 0.22), transparent 58%),
+    radial-gradient(44rem 28rem at 99% -6%, rgba(224, 72, 61, 0.2), transparent 56%),
+    radial-gradient(58rem 42rem at 42% 112%, rgba(74, 168, 224, 0.18), transparent 60%),
+    linear-gradient(165deg, #202c3a 0%, #151e28 48%, #0d131a 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+kbd {
+  background: var(--bg-tile);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+code {
+  background: var(--bg-tile);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+}
+
+.muted {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.empty {
+  color: var(--text-dim);
+  padding: 16px 4px;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ layout */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/*
+ * Page-scroll mode, switched on while the draft read-out is open.
+ *
+ * Normally this is a fixed-height board: the window never scrolls and each
+ * column scrolls inside itself, which is right when the whole point is to keep
+ * the grid and both team panels on screen at once. A full-width panel above all
+ * of that breaks the arrangement — something has to give up its height, and
+ * whichever it is ends up with a scrollbar nested inside another one.
+ *
+ * So while it is open the app stops pretending to be a viewport-sized
+ * application and becomes a document: the panel is shown whole, the columns
+ * stop clipping, and the window scrolls past all of it. The top bar stays put
+ * so the badge that opened the panel is always there to close it again.
+ */
+.app-page {
+  height: auto;
+  min-height: 100%;
+}
+
+.app-page .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.app-page .col-left,
+.app-page .col-right,
+.app-page .grid-scroll {
+  overflow: visible;
+}
+
+/* Without a floor the board can end up shorter than the panel above it. */
+.app-page .layout {
+  min-height: 70vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand h1 {
+  font-size: 16px;
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+
+.topbar-status {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 340px;
+  gap: 12px;
+  padding: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.col {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.col-left,
+.col-right {
+  overflow-y: auto;
+}
+
+.grid-scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+@media (max-width: 1280px) {
+  .layout {
+    grid-template-columns: 280px minmax(0, 1fr) 300px;
+  }
+}
+
+@media (max-width: 1040px) {
+  .layout {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .col-left,
+  .col-right,
+  .grid-scroll {
+    overflow: visible;
+  }
+}
+
+/* ------------------------------------------------------------------ chrome */
+
+.btn {
+  background: var(--bg-tile);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 11px;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.btn:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: #26333f;
+  border-color: #3a4756;
+}
+
+/*
+ * `aria-disabled` looks the same but stays hoverable and focusable, for the
+ * buttons whose unavailable state is worth explaining — a truly disabled button
+ * fires no mouse events, so its tooltip never appears.
+ */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-danger:hover:not(:disabled) {
+  border-color: var(--enemy);
+  color: #ffb3ad;
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.link-btn:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-tile);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.tag-good {
+  color: #9fe0b1;
+  border-color: rgba(78, 196, 111, 0.4);
+}
+
+.tag-bad {
+  color: #f0aaa3;
+  border-color: rgba(226, 104, 94, 0.4);
+}
+
+/* Amber rather than red: stale data still works, it just needs refreshing. */
+.tag-warn {
+  color: #e8c98a;
+  border-color: rgba(226, 163, 61, 0.45);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dot-mine {
+  background: var(--mine);
+}
+.dot-enemy {
+  background: var(--enemy);
+}
+.dot-banned {
+  background: var(--banned);
+}
+.dot-ban-mine {
+  background: var(--ban-mine);
+}
+.dot-ban-enemy {
+  background: var(--ban-enemy);
+}
+
+.notice {
+  margin: 0 12px;
+  padding: 10px 14px;
+  background: rgba(224, 168, 61, 0.1);
+  border: 1px solid rgba(224, 168, 61, 0.35);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.settings {
+  display: flex;
+  gap: 22px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--line);
+}
+
+.settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  font-size: 12px;
+}
+
+.settings small {
+  color: var(--text-dim);
+  max-width: 260px;
+}
+
+.settings input[type="range"] {
+  accent-color: var(--mine);
+}
+
+.settings select {
+  padding: 4px 6px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: inherit;
+}
+
+/* ------------------------------------------------------------- team panels */
+
+.team {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px;
+  transition: border-color 0.12s;
+}
+
+.team-active {
+  border-color: #46586c;
+}
+
+.team-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.team-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.team-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--bg-tile);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 3px 8px 3px 5px;
+  text-align: left;
+}
+
+.team-mine .chip {
+  border-left-color: var(--mine);
+  background: linear-gradient(90deg, var(--mine-soft), transparent 65%), var(--bg-tile);
+}
+.team-enemy .chip {
+  border-left-color: var(--enemy);
+  background: linear-gradient(90deg, var(--enemy-soft), transparent 65%), var(--bg-tile);
+}
+.team-banned .chip {
+  border-left-color: var(--banned);
+}
+
+.chip-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.team-banned .chip-name {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.chip-x {
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.chip:hover .chip-x {
+  color: var(--enemy);
+}
+
+.chip-empty {
+  height: 30px;
+  background: transparent;
+  border-style: dashed;
+  border-left-color: var(--line);
+  border-left-width: 1px;
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  font-size: 11px;
+}
+
+.team-placeholder {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.ban-list {
+  /* Seven standard ban rows: 7 × 32px plus six 4px gaps. */
+  max-height: 248px;
+  overflow-y: auto;
+}
+
+/* ------------------------------------------------------------- ban benches */
+
+/*
+ * The two ban lists, side by side.
+ *
+ * Drawn as columns rather than as one list with markers because the enemy's
+ * column has to be readable as a *group*: the signal the picker reads is in
+ * what several of their bans have in common, and that is invisible in a mixed
+ * list ordered by click time.
+ */
+.ban-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ban-side {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.ban-side-mine.ban-side-active {
+  border-color: rgba(76, 138, 99, 0.55);
+  background: rgba(76, 138, 99, 0.08);
+}
+
+.ban-side-enemy.ban-side-active {
+  border-color: rgba(156, 96, 88, 0.55);
+  background: rgba(156, 96, 88, 0.08);
+}
+
+.ban-side-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+
+.ban-side-active .ban-side-title {
+  color: var(--text);
+}
+
+.ban-empty {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.ban-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ban-row .chip {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Re-attributing a ban is one click, and reachable after the fact. */
+.ban-flip {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-tile);
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.ban-row:hover .ban-flip,
+.ban-flip:focus-visible {
+  opacity: 1;
+}
+
+.ban-flip:hover {
+  color: var(--text);
+  border-color: #46586c;
+}
+
+/*
+ * Bans restored from a draft saved before sides existed. Amber for the same
+ * reason stale data is amber: nothing is broken, something is unanswered.
+ */
+.ban-loose {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.ban-loose-head {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #e8c98a;
+}
+
+.ban-claim {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+.ban-claim-btn {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-tile);
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.ban-claim-mine:hover {
+  color: #b7e0c4;
+  border-color: var(--ban-mine);
+}
+
+.ban-claim-enemy:hover {
+  color: #f0bdb7;
+  border-color: var(--ban-enemy);
+}
+
+/* The panel heading no longer arms anything — the two bench titles do. */
+.team-title-static {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* --------------------------------------------------------------- positions */
+
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.team-row .chip,
+.team-row .chip-empty {
+  flex: 1;
+  min-width: 0;
+}
+
+.position-picker,
+.position-ghost {
+  flex: none;
+  width: 30px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--bg-tile);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-align-last: center;
+  appearance: none;
+  padding: 0;
+}
+
+/*
+ * The badge only has room for a digit, so the select's own label ("1 Safe
+ * carry 62%") is hidden and `.position-face` paints the number on top. The
+ * wrapper carries the position colour; the select inherits its border from it.
+ */
+.position-slot {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 30px;
+  height: 26px;
+  border-color: var(--line);
+  color: var(--text-dim);
+}
+
+.position-slot .position-picker {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-color: inherit;
+  color: transparent;
+}
+
+.position-slot:hover {
+  border-color: #46586c;
+  color: var(--text);
+}
+
+.position-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* Hover popup naming the role, sitting over the hero chip to its right. */
+.position-slot::after {
+  content: attr(data-role);
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  /* Tooltips sit directly over portraits and hero names, so the shared glass
+     surface is too transparent here: content underneath competes with the
+     role label and makes it look like the two strings overlap. */
+  background: #263341;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+
+.position-slot:hover::after,
+.position-slot:focus-within::after {
+  opacity: 1;
+}
+
+/* The popup deliberately occupies the chip's text area. Hide the hero name
+   while it is open so a long name cannot continue beyond the popup and read
+   as part of the role label. */
+.position-slot:hover + .chip .chip-name,
+.position-slot:focus-within + .chip .chip-name {
+  visibility: hidden;
+}
+
+.position-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+.position-picker option {
+  background: var(--bg-raised);
+  color: var(--text);
+  text-align: left;
+}
+
+.position-filter {
+  display: flex;
+  gap: 3px;
+  margin: 6px 0 2px;
+}
+
+/* The copy in the sort bar sits on one line with the sort buttons. */
+.position-filter-inline {
+  margin: 0;
+  margin-left: -4px;
+}
+
+.rank-filter {
+  margin: 0;
+}
+
+.pos-chip {
+  min-width: 26px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--bg-tile);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pos-chip:hover:not(:disabled) {
+  border-color: #46586c;
+}
+
+.pos-chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* An underline marks positions the team has not filled yet. */
+.pos-chip-needed::after {
+  content: "";
+  display: block;
+  height: 2px;
+  margin: 1px -3px -2px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+/* The "Any" chip, which carries no position class. */
+.pos-chip.pos-chip-active {
+  background: var(--text-dim);
+  border-color: var(--text-dim);
+  color: var(--bg);
+}
+
+/*
+ * Position colours. Declared last and with two-class selectors so they beat
+ * the generic `.pos-chip` / `.position-picker` colours they share
+ * specificity with.
+ */
+.position-slot.pos-1, .pos-chip.pos-1 { color: var(--pos-1); border-color: color-mix(in srgb, var(--pos-1) 45%, var(--line)); }
+.position-slot.pos-2, .pos-chip.pos-2 { color: var(--pos-2); border-color: color-mix(in srgb, var(--pos-2) 45%, var(--line)); }
+.position-slot.pos-3, .pos-chip.pos-3 { color: var(--pos-3); border-color: color-mix(in srgb, var(--pos-3) 45%, var(--line)); }
+.position-slot.pos-4, .pos-chip.pos-4 { color: var(--pos-4); border-color: color-mix(in srgb, var(--pos-4) 45%, var(--line)); }
+.position-slot.pos-5, .pos-chip.pos-5 { color: var(--pos-5); border-color: color-mix(in srgb, var(--pos-5) 45%, var(--line)); }
+
+.position-ghost.pos-1 { color: var(--pos-1); }
+.position-ghost.pos-2 { color: var(--pos-2); }
+.position-ghost.pos-3 { color: var(--pos-3); }
+.position-ghost.pos-4 { color: var(--pos-4); }
+.position-ghost.pos-5 { color: var(--pos-5); }
+
+.pos-chip.pos-chip-active.pos-1 { background: var(--pos-1); border-color: var(--pos-1); color: var(--bg); }
+.pos-chip.pos-chip-active.pos-2 { background: var(--pos-2); border-color: var(--pos-2); color: var(--bg); }
+.pos-chip.pos-chip-active.pos-3 { background: var(--pos-3); border-color: var(--pos-3); color: var(--bg); }
+.pos-chip.pos-chip-active.pos-4 { background: var(--pos-4); border-color: var(--pos-4); color: var(--bg); }
+.pos-chip.pos-chip-active.pos-5 { background: var(--pos-5); border-color: var(--pos-5); color: var(--bg); }
+
+.tag-pos {
+  color: var(--text);
+  border-color: #3c4a59;
+}
+
+.tag-lane {
+  font-weight: 600;
+}
+
+/* Teammate pairings, as opposed to the ⚔ chips that face the other team. */
+.tag-syn {
+  border-style: dashed;
+}
+
+.composition {
+  font-size: 12px;
+  margin: 0;
+  padding: 0 4px;
+}
+
+/* ------------------------------------------------------------------- grid */
+
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search {
+  flex: 1;
+  min-width: 200px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font: inherit;
+}
+
+.search:focus {
+  outline: none;
+  border-color: #46586c;
+}
+
+.modes {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.mode:hover {
+  color: var(--text);
+}
+
+.mode-active {
+  color: var(--text);
+  background: var(--bg-tile);
+}
+
+.mode-mine.mode-active {
+  box-shadow: inset 0 -2px 0 var(--mine);
+}
+.mode-enemy.mode-active {
+  box-shadow: inset 0 -2px 0 var(--enemy);
+}
+.mode-banned.mode-active {
+  box-shadow: inset 0 -2px 0 var(--banned);
+}
+.mode-ban-mine.mode-active {
+  box-shadow: inset 0 -2px 0 var(--ban-mine);
+}
+.mode-ban-enemy.mode-active {
+  box-shadow: inset 0 -2px 0 var(--ban-enemy);
+}
+
+.hints {
+  margin: 0;
+  font-size: 12px;
+}
+
+.sortbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sortbar-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.sorts {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.sort {
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.sort:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.sort:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sort-active {
+  color: var(--text);
+  background: var(--bg-tile);
+}
+
+.sort-pick.sort-active {
+  box-shadow: inset 0 -2px 0 var(--mine);
+}
+.sort-ban.sort-active {
+  box-shadow: inset 0 -2px 0 var(--banned);
+}
+
+.grid-section + .grid-section {
+  margin-top: 14px;
+}
+
+.grid-heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+}
+
+.attr-text-str {
+  color: var(--str);
+}
+.attr-text-agi {
+  color: var(--agi);
+}
+.attr-text-int {
+  color: var(--int);
+}
+.attr-text-uni {
+  color: var(--uni);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-w), 1fr));
+  gap: 6px;
+}
+
+/*
+ * The grid cell holds the tile plus a row of overlay buttons laid over its
+ * lower edge. They are siblings because a button cannot nest in a button.
+ */
+.tile-wrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.tile-wrap > .tile {
+  flex: 1;
+  min-width: 0;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 0 3px;
+  background: var(--bg-tile);
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.08s, border-color 0.12s, opacity 0.12s;
+}
+
+/* Hover lives on the wrapper so the tile stays lit while the cursor is on the
+ * info button sitting over it. */
+.tile-wrap {
+  /* Matches the tile, so the hover glow follows its corners. */
+  border-radius: 6px;
+  transition: transform 0.08s, box-shadow 0.12s;
+}
+
+.tile-wrap:hover {
+  transform: translateY(-1px);
+}
+
+.tile-wrap:hover .tile {
+  border-color: #46586c;
+}
+
+/*
+ * Hover wears the colour of the click target.
+ *
+ * A click on a tile means whatever the selector at the top of the board is set
+ * to, which is the one piece of state on this screen with no visible echo where
+ * it is being spent. Green, red or grey under the cursor is that echo: the
+ * answer to "what does this click do" arrives before the click, not after it.
+ */
+/*
+ * The glow hangs off the wrapper rather than the tile so that a hero already on
+ * a team keeps the inset ring saying so; only the border and a wash of colour
+ * change under the cursor.
+ */
+.tile-wrap-mine:hover {
+  box-shadow: 0 0 13px -6px var(--mine);
+}
+.tile-wrap-mine:hover .tile {
+  border-color: var(--mine);
+  background: linear-gradient(to top, var(--mine-soft), transparent 62%), var(--bg-tile);
+}
+.tile-wrap-mine:hover .tile .tile-name {
+  color: #a9e8bd;
+}
+
+.tile-wrap-enemy:hover {
+  box-shadow: 0 0 13px -6px var(--enemy);
+}
+.tile-wrap-enemy:hover .tile {
+  border-color: var(--enemy);
+  background: linear-gradient(to top, var(--enemy-soft), transparent 62%), var(--bg-tile);
+}
+.tile-wrap-enemy:hover .tile .tile-name {
+  color: #f5b4ae;
+}
+
+.tile-wrap-banned:hover {
+  box-shadow: 0 0 13px -6px var(--banned);
+}
+.tile-wrap-banned:hover .tile {
+  border-color: var(--banned);
+  background: linear-gradient(to top, var(--banned-soft), transparent 62%), var(--bg-tile);
+}
+.tile-wrap-banned:hover .tile .tile-name {
+  color: #c3ccd6;
+}
+
+.tile-name {
+  font-size: 10.5px;
+  line-height: 1.15;
+  padding: 0 4px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portrait {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #101820;
+}
+
+.portrait-sm {
+  width: 42px;
+  height: 24px;
+  border-radius: 3px;
+  aspect-ratio: auto;
+  flex: none;
+}
+
+.portrait-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0f1419;
+}
+
+.portrait-fallback.attr-str {
+  background: var(--str);
+}
+.portrait-fallback.attr-agi {
+  background: var(--agi);
+}
+.portrait-fallback.attr-int {
+  background: var(--int);
+}
+.portrait-fallback.attr-uni {
+  background: var(--uni);
+}
+
+.tile-mine {
+  border-color: var(--mine);
+  box-shadow: inset 0 0 0 1px var(--mine), 0 0 12px -4px var(--mine);
+}
+.tile-mine .tile-name {
+  color: #a9e8bd;
+}
+
+.tile-enemy {
+  border-color: var(--enemy);
+  box-shadow: inset 0 0 0 1px var(--enemy), 0 0 12px -4px var(--enemy);
+}
+.tile-enemy .tile-name {
+  color: #f5b4ae;
+}
+
+.tile-banned {
+  opacity: 0.42;
+  filter: grayscale(1);
+  border-color: var(--banned);
+}
+
+.tile-wrap:hover .tile-banned {
+  opacity: 0.6;
+  border-color: var(--banned);
+}
+
+.tile-wrap:has(.tile-banned):hover {
+  transform: none;
+}
+
+/*
+ * The cross over a banned tile, in the colour of whoever spent the ban.
+ *
+ * `--ban-mark` defaults to plain grey, which is what an unattributed ban gets —
+ * the same mark the grid has always drawn. The two side variants only re-point
+ * the variable, so there is one cross here rather than three.
+ */
+.tile-ban-mark {
+  --ban-mark: var(--banned);
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 1px), var(--ban-mark) 50%, transparent calc(50% + 1px)),
+    linear-gradient(to bottom left, transparent calc(50% - 1px), var(--ban-mark) 50%, transparent calc(50% + 1px));
+  pointer-events: none;
+}
+
+.tile-ban-mine {
+  --ban-mark: var(--ban-mine);
+}
+.tile-ban-enemy {
+  --ban-mark: var(--ban-enemy);
+}
+
+/*
+ * A hero the enemy's bans have been clearing the way for.
+ *
+ * Opposite corner from the score badge and the rank, so it adds a mark to a
+ * tile rather than a third number to read. The reading it stands for is spelled
+ * out in the panel and in the tile's own tooltip.
+ */
+.tile-intent {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--intent);
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+/* Heroes who do not play the position being drafted for. */
+.tile-offrole {
+  opacity: 0.3;
+}
+
+.tile-wrap:hover .tile-offrole {
+  opacity: 0.65;
+}
+
+/* -------------------------------------------------------------- hero card */
+
+/*
+ * The row of overlay buttons: the two slots the tile click is *not* aimed at,
+ * then the breakdown trigger. Hidden until the cell is hovered, so 120-odd
+ * tiles stay quiet, and inert while hidden so an invisible button cannot be
+ * clicked by accident.
+ */
+.tile-actions {
+  position: absolute;
+  right: 3px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  /* Three 16px discs plus these gaps clear the rank badge at the narrowest
+   * tile the grid will draw (84px). */
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+
+.tile-wrap:hover .tile-actions,
+.tile-actions:focus-within,
+/* A pinned card keeps its trigger on screen even once the cursor has left. */
+.tile-actions:has(.tile-info-on) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tile-act,
+.tile-info {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+  border-radius: 50%;
+  backdrop-filter: blur(2px);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.08s;
+}
+
+.tile-act:hover,
+.tile-info:hover {
+  transform: scale(1.12);
+}
+
+/*
+ * Colour is the whole message here — the same green, red and grey as the click
+ * target selector, the team panels and the ban list — so the buttons are drawn
+ * as filled discs rather than outlines, and read at 16px from the corner of the
+ * eye without being looked at directly.
+ */
+.tile-act {
+  border: 1px solid transparent;
+  color: #0b0f13;
+  font-size: 11px;
+}
+
+.tile-act-mine {
+  background: var(--mine);
+}
+.tile-act-enemy {
+  background: var(--enemy);
+}
+.tile-act-banned {
+  background: var(--banned);
+  color: #e6ecf2;
+}
+
+/* Already in that slot, so the click takes them back out. */
+.tile-act-on {
+  background: rgba(10, 14, 18, 0.85);
+  color: #cdd7e2;
+}
+.tile-act-on.tile-act-mine {
+  border-color: var(--mine);
+  color: var(--mine);
+}
+.tile-act-on.tile-act-enemy {
+  border-color: var(--enemy);
+  color: var(--enemy);
+}
+.tile-act-on.tile-act-banned {
+  border-color: var(--banned);
+  color: #cdd7e2;
+}
+
+.tile-info {
+  border: 1px solid rgba(160, 178, 196, 0.5);
+  background: rgba(10, 14, 18, 0.85);
+  color: #cdd7e2;
+  font-style: italic;
+}
+
+.tile-info:hover,
+.tile-info-on {
+  background: #cdd7e2;
+  border-color: #cdd7e2;
+  color: #0f1419;
+}
+
+/* The colour word in the hint, painted the colour it names. */
+.hint-slot {
+  font-weight: 600;
+}
+.hint-slot-mine {
+  color: var(--mine);
+}
+.hint-slot-enemy {
+  color: var(--enemy);
+}
+.hint-slot-banned {
+  color: #97a4b1;
+}
+
+/* Same glyph as the tile trigger, so the hint points at something recognisable. */
+.hint-info {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(160, 178, 196, 0.5);
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  vertical-align: -2px;
+}
+
+.herocard {
+  position: fixed;
+  z-index: 60;
+  width: 302px;
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  padding: 10px 12px 11px;
+  background: var(--bg-raised);
+  border: 1px solid #3a4756;
+  border-radius: var(--radius);
+  box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.8);
+  font-size: 12px;
+}
+
+.hc-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.hc-portrait {
+  width: 64px;
+  height: 36px;
+  aspect-ratio: auto;
+  border-radius: 4px;
+  flex: none;
+}
+
+.hc-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/*
+ * The ways out to the source pages.
+ *
+ * Stacked rather than side by side: the card is 302px wide, and a second tile
+ * in the row wraps the longest names ("Outworld Destroyer") once the card's
+ * scrollbar takes its share. Dim until hovered, because they are ways out of
+ * the draft rather than part of it.
+ */
+.hc-links {
+  flex: none;
+  align-self: flex-start;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hc-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--bg-tile);
+  color: var(--text-dim);
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.hc-link-d2pt {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.hc-link:hover,
+.hc-link:focus-visible {
+  color: var(--text);
+  border-color: #46586d;
+  background: #232f3b;
+}
+
+.hc-title strong {
+  font-size: 14px;
+}
+
+.hc-title .muted {
+  font-size: 11px;
+}
+
+.hc-slot {
+  margin: 7px 0 0;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border-left: 3px solid var(--banned);
+  background: var(--bg-tile);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.hc-slot-mine {
+  border-left-color: var(--mine);
+}
+.hc-slot-enemy {
+  border-left-color: var(--enemy);
+}
+
+.hc-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 9px 0 2px;
+}
+
+.hc-score-value {
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.hc-score .muted {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+/* The score, taken apart: every row is already in score points, and they add
+ * up to the number above. */
+.hc-parts {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.hc-parts li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 8px;
+}
+
+.hc-part-label {
+  font-weight: 600;
+}
+
+.hc-part-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-part-value.good {
+  color: var(--good);
+}
+.hc-part-value.bad {
+  color: var(--bad);
+}
+
+.hc-part-detail {
+  grid-column: 1 / -1;
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+
+.hc-section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.hc-section h4 {
+  margin: 0 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-dim);
+}
+
+/* What the board becomes if this hero is taken. Sits directly under the score
+ * because it answers the other half of the question the score raises. */
+.hc-impact-line {
+  margin: 0;
+  font-size: 12px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.hc-impact-line strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-impact-from {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.hc-impact-move {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-impact-move.good,
+.hc-impact-line strong.good {
+  color: var(--good);
+}
+.hc-impact-move.bad,
+.hc-impact-line strong.bad {
+  color: var(--bad);
+}
+
+.hc-impact-lane {
+  margin: 4px 0 0;
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+
+.hc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* The position colours are declared for pickers and filters, so the card's
+ * chips have to opt in themselves. */
+.hc-chips .pos-1 { color: var(--pos-1); border-color: color-mix(in srgb, var(--pos-1) 45%, var(--line)); }
+.hc-chips .pos-2 { color: var(--pos-2); border-color: color-mix(in srgb, var(--pos-2) 45%, var(--line)); }
+.hc-chips .pos-3 { color: var(--pos-3); border-color: color-mix(in srgb, var(--pos-3) 45%, var(--line)); }
+.hc-chips .pos-4 { color: var(--pos-4); border-color: color-mix(in srgb, var(--pos-4) 45%, var(--line)); }
+.hc-chips .pos-5 { color: var(--pos-5); border-color: color-mix(in srgb, var(--pos-5) 45%, var(--line)); }
+
+/* The position this card was scored for. */
+.hc-chips .hc-chip-on {
+  background: rgba(205, 215, 226, 0.14);
+  font-weight: 700;
+}
+
+/* The role filter over the two face rows. Six chips have to share 302px of card,
+ * so they stretch to fill the width instead of sitting at their natural size. */
+.hc-rolefilter h4 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.position-filter-card {
+  margin: 0;
+  gap: 3px;
+}
+
+.position-filter-card .pos-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+
+/* ------------------------------------------- counters to ban, partners to take
+ *
+ * Faces rather than a table, because the action each row feeds is aimed at a
+ * portrait. Every number is on screen at once — a row of unlabelled faces is a
+ * ranking you can only trust, one with figures under it is a ranking you can
+ * argue with — and the hover adds the sample the figure rests on, in a line
+ * below rather than a second floating layer: the card is itself a popover, and
+ * popovers over popovers are how you lose the one you were reading.
+ */
+.hc-faces h4 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hc-face-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+
+/*
+ * Five columns whatever the row has in it.
+ *
+ * Flex children sharing the width meant one hero got all of it — a single face
+ * came out five times the size of the same face in a full row, which reads as
+ * emphasis the row never intended: the lone pos 1 answer to a hero is not a
+ * bigger fact than the first of five, it is a thinner one. A fixed five-column
+ * track keeps a face the same size however many the filter left, and lets a short
+ * row look short.
+ */
+.hc-face-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+
+.hc-face {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 1px;
+  background: var(--bg-tile);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+}
+
+/* The hover colour is the colour of what the click does: grey for the ban row,
+ * green for the row that puts a hero on your team. */
+.hc-face:hover:not(:disabled),
+.hc-face:focus-visible {
+  border-color: var(--banned);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.hc-faces-mine .hc-face:hover:not(:disabled),
+.hc-faces-mine .hc-face:focus-visible {
+  border-color: var(--mine);
+}
+
+.hc-face-value {
+  padding-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.hc-face-value.good {
+  color: var(--good);
+}
+.hc-face-value.bad {
+  color: var(--bad);
+}
+
+/* Already dealt with, one way or another — still listed, because "this threat
+ * is handled" is itself worth seeing, and a list that silently reshuffled as
+ * you banned would make it impossible to tell which one you just clicked. */
+.hc-face-banned,
+.hc-face-mine,
+.hc-face-enemy {
+  opacity: 0.45;
+}
+
+.hc-face-mine {
+  border-color: var(--mine);
+}
+.hc-face-enemy {
+  border-color: var(--enemy);
+}
+
+.hc-face:disabled {
+  cursor: default;
+}
+
+.hc-face-mark {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 1px), var(--banned) 50%, transparent calc(50% + 1px)),
+    linear-gradient(to bottom left, transparent calc(50% - 1px), var(--banned) 50%, transparent calc(50% + 1px));
+  pointer-events: none;
+}
+
+/* Two fixed lines whatever the hovered hero is called, so sweeping along the
+ * row does not shuffle the sections underneath it. */
+.hc-face-readout {
+  display: flex;
+  flex-direction: column;
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.hc-face-readout > span {
+  min-height: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hc-face-readout-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hc-face-readout strong {
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.hc-face-readout-head .muted {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hc-rows li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  column-gap: 8px;
+}
+
+.hc-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hc-lane {
+  margin-right: 4px;
+  color: var(--text-dim);
+}
+
+.hc-row-n {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-row-value {
+  min-width: 40px;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-row-value.good {
+  color: var(--good);
+}
+.hc-row-value.bad {
+  color: var(--bad);
+}
+
+.hc-none {
+  margin: 0;
+  font-size: 11px;
+}
+
+.hc-foot {
+  margin: 10px 0 0;
+  padding-top: 7px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.tile-pos {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: #cdd7e2;
+  background: rgba(10, 14, 18, 0.8);
+  backdrop-filter: blur(2px);
+}
+
+.tile-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(10, 14, 18, 0.85);
+  backdrop-filter: blur(2px);
+}
+
+.tile-badge.good {
+  color: var(--good);
+}
+.tile-badge.bad {
+  color: var(--bad);
+}
+
+/* Ordinal on the leading tiles of a sorted grid — an anchor for the eye. */
+.tile-rank {
+  position: absolute;
+  bottom: 20px;
+  left: 3px;
+  min-width: 15px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  padding: 1px 3px;
+  border-radius: 4px;
+  color: #0f1419;
+  background: #d8c48a;
+}
+
+/* ------------------------------------------------------------ suggestions */
+
+.panel {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-top-width: 2px;
+  border-radius: var(--radius);
+  padding: 10px 12px 12px;
+}
+
+.panel-pick {
+  border-top-color: var(--mine);
+}
+.panel-ban {
+  border-top-color: var(--banned);
+}
+
+/*
+ * The one panel on screen built on an inference about a person rather than a
+ * table of games, and coloured so it cannot be mistaken for one of the two that
+ * are not. Amber is already this app's colour for "true, but check it".
+ */
+.panel-intent {
+  border-top-color: var(--intent);
+}
+
+.intent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  counter-reset: intent;
+}
+
+.intent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.intent-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.intent-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.intent-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.intent-score {
+  flex: none;
+  font-size: 11px;
+  color: var(--intent);
+  font-variant-numeric: tabular-nums;
+}
+
+.intent-bar {
+  display: block;
+  height: 3px;
+  background: var(--bg-tile);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.intent-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--intent);
+  transition: width 0.18s ease-out;
+}
+
+.intent-tags,
+.intent-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* The bans the claim is built from, named so the claim can be checked. */
+.tag-evidence {
+  color: #e8c98a;
+  border-color: rgba(201, 162, 39, 0.4);
+  background: var(--intent-soft);
+}
+
+.intent-act {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-tile);
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.intent-act:hover {
+  color: var(--text);
+  border-color: #46586c;
+}
+
+/* The other way out: the answer to their plan that is still on the board. */
+.intent-act-answer:hover {
+  color: #b7e0c4;
+  border-color: var(--mine);
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+.panel-header p {
+  margin: 4px 0 10px;
+  font-size: 12px;
+}
+
+.suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  counter-reset: rank;
+}
+
+.suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 6px;
+  text-align: left;
+}
+
+.suggestion:hover {
+  background: var(--bg-tile);
+  border-color: var(--line);
+}
+
+.rank {
+  width: 16px;
+  flex: none;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+  padding-top: 4px;
+}
+
+.suggestion-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.suggestion-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.suggestion-name {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Marks a hero the ranking keeps whatever the sliders say. Deliberately small
+ * and unsaturated: it is a footnote about confidence, not a second score. */
+.robust-mark {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--pos-1);
+  opacity: 0.85;
+  flex: none;
+  margin-left: -4px;
+}
+
+/* The name is allowed to shrink; the star and the score are not. */
+.suggestion-top > .suggestion-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.score {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.score.good,
+.bar-fill.good {
+  color: var(--good);
+}
+.score.bad,
+.bar-fill.bad {
+  color: var(--bad);
+}
+
+.bar {
+  display: block;
+  height: 3px;
+  background: var(--bg-tile);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  transition: width 0.18s ease-out;
+}
+
+.suggestion-meta {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* ---------------------------------------------------------- draft analysis */
+
+/*
+ * Full width under the top bar rather than a column: it is read across, in one
+ * pass. Squeezing it into the right-hand column would mean two-line lane rows
+ * and a scroll for the part that matters most.
+ *
+ * Shown whole, never scrolled inside itself — `.app-page` below hands the
+ * scrolling to the page instead. `flex: none` keeps a tall board from crushing
+ * it in the other direction.
+ */
+.analysis {
+  flex: none;
+  margin: 0 12px 4px;
+  padding: 12px 14px 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--pos-4);
+  border-radius: var(--radius);
+}
+
+.analysis-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.analysis-headline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.analysis-figure {
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.analysis-figure.good {
+  color: var(--good);
+}
+.analysis-figure.bad {
+  color: var(--bad);
+}
+.analysis-figure.even {
+  color: var(--text-dim);
+}
+
+.analysis-verdict {
+  font-size: 15px;
+}
+
+.analysis-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.analysis-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* The part that gets said out loud. Sized to be read across a room. */
+.analysis-points {
+  margin: 10px 0 0;
+  padding: 8px 10px 8px 26px;
+  background: var(--bg-tile);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.analysis-points li::marker {
+  color: var(--pos-4);
+}
+
+.analysis-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.analysis-card {
+  background: var(--bg-tile);
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 9px 11px 11px;
+}
+
+.analysis-card h3 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-dim);
+}
+
+.analysis-card-sub {
+  margin: 3px 0 8px;
+  font-size: 11.5px;
+}
+
+.analysis-sub-head {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+/* The two timing curves. The rows below carry the figures; this carries the
+ * shape, which is the part a table cannot show. */
+.stage-chart {
+  margin: 0 0 10px;
+}
+
+.stage-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.stage-axis {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.stage-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stage-line-us {
+  stroke: var(--mine);
+}
+.stage-line-them {
+  stroke: var(--enemy);
+}
+
+.stage-dot-us {
+  fill: var(--mine);
+}
+.stage-dot-them {
+  fill: var(--enemy);
+}
+
+.stage-tick {
+  fill: var(--text-dim);
+  font-size: 9px;
+}
+
+.stage-chart figcaption {
+  margin-top: 3px;
+  font-size: 10.5px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.stage-key {
+  display: inline-block;
+  width: 9px;
+  height: 2px;
+  border-radius: 1px;
+  vertical-align: middle;
+}
+
+.stage-key-us {
+  background: var(--mine);
+}
+.stage-key-them {
+  background: var(--enemy);
+}
+
+.analysis-card .empty {
+  padding: 6px 0;
+  font-size: 11.5px;
+}
+
+.analysis-foot {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* ------------------------------------------------ lane, stage and hero rows */
+
+.lane-row + .lane-row,
+.stage-row + .stage-row,
+.hero-row + .hero-row {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.lane-row-thin {
+  opacity: 0.55;
+}
+
+.lane-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lane-name {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lane-value {
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.lane-value.good {
+  color: var(--good);
+}
+.lane-value.bad {
+  color: var(--bad);
+}
+.lane-value.even {
+  color: var(--text-dim);
+}
+
+.lane-sides {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  margin-top: 3px;
+}
+
+.lane-sides > span:first-child {
+  color: var(--mine);
+}
+
+.lane-sides > span:last-child {
+  color: var(--enemy);
+}
+
+.lane-vs {
+  color: var(--text-dim);
+  flex: none;
+}
+
+.lane-note {
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.lane-note.good {
+  color: #9fe0b1;
+}
+.lane-note.bad {
+  color: #f0aaa3;
+}
+
+/*
+ * The lane's two readings disagreeing with each other.
+ *
+ * Set apart from the other notes on purpose. Everything else in the card
+ * elaborates on the number above it; this one says that number is the wrong one
+ * to believe, and it has to survive being read at a glance by someone whose
+ * eyes have already stopped on the large green figure it contradicts.
+ */
+.lane-note-split {
+  margin-top: 5px;
+  padding: 4px 7px;
+  border-left: 2px solid var(--bad);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: rgba(226, 104, 94, 0.09);
+}
+
+.hero-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.hero-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * Bars that grow from the middle. Zero is the centre line, so "we are losing
+ * this lane" reads to the left and "we are winning it" to the right — the
+ * direction the number already has.
+ */
+.diverge {
+  position: relative;
+  display: block;
+  height: 4px;
+  margin-top: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.diverge-axis {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+
+.diverge-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  transition: width 0.18s ease-out;
+}
+
+.diverge-fill.good {
+  background: var(--good);
+}
+.diverge-fill.bad {
+  background: var(--bad);
+}
+.diverge-fill.even {
+  background: var(--text-dim);
+}
+
+/* ------------------------------------------------------------- pair listing */
+
+.pair-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pair-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.pair-row:last-child {
+  border-bottom: 0;
+}
+
+.pair-names {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pair-names strong {
+  font-weight: 600;
+}
+
+.pair-lane {
+  color: var(--pos-2);
+  margin-right: 3px;
+}
+
+.pair-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.pair-value.good {
+  color: var(--good);
+}
+.pair-value.bad {
+  color: var(--bad);
+}
+.pair-value.even {
+  color: var(--text-dim);
+}
+
+/* The top-bar badge is a control now, so it has to look like one. */
+.tag-button {
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.tag-button:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.tag-caret {
+  font-size: 8px;
+  opacity: 0.8;
+}
+
+/* Lane duo chemistry sits beside the two names it belongs to. */
+.lane-duos {
+  display: flex;
+  gap: 10px;
+}
+
+.lane-duos .good {
+  color: var(--good);
+}
+
+.lane-duos .bad {
+  color: var(--bad);
+}
+
+.lane-duos-label {
+  flex: none;
+  min-width: 52px;
+  opacity: 0.7;
+}
+
+/* --------------------------------------------------------------- rebalance */
+
+/*
+ * The reshuffle panel sits where the read-out does and is deliberately built
+ * from the same parts — one raised block across the top of the board, opened
+ * from the chrome, closed by a button of its own. It answers a different
+ * question, so it gets its own accent colour, and that is the only difference a
+ * reader has to learn.
+ */
+.rebalance {
+  flex: none;
+  margin: 0 12px 4px;
+  padding: 12px 14px 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--pos-1);
+  border-radius: var(--radius);
+  outline: none;
+}
+
+/*
+ * The panel takes focus when it opens, because opening it pushes several hundred
+ * pixels of board down the page. Focus that arrives programmatically gets a ring
+ * only when the reader is navigating by keyboard.
+ */
+.rebalance:focus-visible {
+  box-shadow: 0 0 0 2px var(--pos-1);
+}
+
+/*
+ * Everything below the header is capped at a reading width.
+ *
+ * The header keeps the full span, because Close belongs at the right edge of the
+ * block it closes. The content does not: on a wide monitor a one-line option
+ * stretched across 2000px put its Apply button most of a metre away from the
+ * figure that justified pressing it, with nothing in between.
+ */
+.rebalance-inner > *:not(.rebalance-head) {
+  max-width: 1180px;
+}
+
+.rebalance-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/*
+ * The sentence wraps; the controls do not get pushed off the end by it. Without
+ * a basis the flex line breaks as soon as the losing-lane clause appears and
+ * Close jumps to a row of its own.
+ */
+.rebalance-head-text {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.rebalance-head h2 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+
+.rebalance-head p {
+  margin: 0;
+  font-size: 12px;
+  max-width: 88ch;
+}
+
+.rebalance-head .bad {
+  color: var(--bad);
+}
+
+.rebalance-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rebalance-plan {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* A control that changes the board, not the list, so it says which it is. */
+.rebalance-plan-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 3px;
+}
+
+/* The lane toggle is a word, not a digit, so it needs more room than a pos chip. */
+.rebalance-plan .pos-chip {
+  min-width: 0;
+  padding: 0 9px;
+}
+
+/*
+ * Applying rewrites five positions at once and nothing else in the app can put
+ * them back, so the panel holds the previous board until the reader is happy.
+ * Accented rather than shouted: it is a receipt, not a warning.
+ */
+.rebalance-applied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 6px 8px 6px 11px;
+  border: 1px solid var(--pos-1);
+  border-radius: 6px;
+  background: rgba(226, 163, 61, 0.1);
+  font-size: 12.5px;
+}
+
+/*
+  The off-role banner borrows the applied-arrangement shell and only re-tints it.
+  Different colour, same shape: both are one line of state about the board rather
+  than an option to weigh, and giving them separate layouts would have made the
+  panel look like it had two kinds of banner when it has one.
+*/
+.rebalance-offrole {
+  border-color: var(--bad);
+  background: rgba(224, 108, 117, 0.12);
+}
+
+.btn-small {
+  padding: 2px 10px;
+  font-size: 11px;
+}
+
+.rebalance-options {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/*
+ * Three columns: what it is worth, what it is, and the button that does it.
+ *
+ * A grid rather than a flex row so the figure and the action stay in fixed
+ * columns whatever the middle does, and `align-items: start` keeps Apply level
+ * with the title it applies rather than drifting to the vertical centre of a
+ * row whose height is set by however many heroes happen to move.
+ */
+.rebalance-option {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 9px 11px;
+  background: var(--bg-tile);
+}
+
+/*
+ * Figure over unit, in one column. The unit is not decoration: the two kinds of
+ * option lead with different quantities — a whole-board gain and a single lane's
+ * swing — and that difference used to be carried by colour alone, which survives
+ * neither a cropped screenshot nor a colour-blind reader.
+ */
+.rebalance-lead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+  padding-top: 1px;
+}
+
+.rebalance-lead-value {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rebalance-lead-unit {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+/* A gain in the whole-board figure. Always positive — the search never offers
+ * an arrangement worth less than the board is on. */
+.rebalance-lead-value.good {
+  color: var(--good);
+}
+
+/*
+ * A lane repair leads with the lane swing, not the board figure, so its number
+ * is coloured differently from a gain — same digits, different claim, and the
+ * two must not be mistaken for each other at a glance.
+ */
+.rebalance-lead-value.warn {
+  color: var(--pos-1);
+}
+
+.rebalance-option-body {
+  min-width: 0;
+}
+
+.rebalance-option-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.rebalance-option-title .muted {
+  font-weight: 400;
+}
+
+/*
+ * The price, next to the thing being priced.
+ *
+ * The list is a trade-off curve — one arrangement per amount of upheaval — and a
+ * curve with only one of its axes printed cannot be read. The reward is the
+ * figure on the left; this is the cost.
+ */
+.rebalance-cost {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.rebalance-apply {
+  align-self: start;
+}
+
+.rebalance-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.rebalance-move {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px 3px 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  font-size: 12px;
+}
+
+.rebalance-move-name {
+  font-weight: 600;
+}
+
+/* A lane swap moves nobody, so the chip has no portrait to sit behind. */
+.rebalance-move-lanes {
+  padding-left: 9px;
+  border-color: var(--pos-1);
+  color: var(--pos-1);
+}
+
+.rebalance-move .position-ghost {
+  width: 22px;
+  height: 20px;
+  font-size: 11px;
+  border-style: solid;
+}
+
+.rebalance-arrow {
+  color: var(--text-dim);
+}
+
+.rebalance-why {
+  margin: 7px 0 0;
+  font-size: 12px;
+}
+
+.rebalance-why .good {
+  color: var(--good);
+}
+.rebalance-why .bad {
+  color: var(--bad);
+}
+
+/*
+ * The two secondary lists — "worth it for one lane" and "beyond your role
+ * threshold" — are subordinate to the main one and have to read that way
+ * without disappearing. A heading with the qualification spelled out beside it,
+ * rather than a badge the reader has to decode.
+ */
+.rebalance-aside-head {
+  margin: 14px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.rebalance-aside-head .muted {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Options the reader's own role threshold rejected: dashed, like the ghost slots. */
+.rebalance-options-beyond .rebalance-option {
+  border-style: dashed;
+  background: transparent;
+}
+
+.rebalance-foot {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.rebalance-foot p {
+  margin: 0 0 4px;
+}
+
+.rebalance-foot p:last-child {
+  margin-bottom: 0;
+}
+
+/* The three units the panel deals in, picked out of the sentence that defines them. */
+.rebalance-foot strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/*
+ * The one button in the top bar that is a warning rather than a control. It only
+ * takes this state when the search actually found something, so it has to read
+ * as "look at me" without becoming a second draft badge.
+ */
+.btn-alert {
+  border-color: var(--pos-1);
+  color: var(--pos-1);
+  background: rgba(226, 163, 61, 0.12);
+}
+
+.btn-alert:hover:not(:disabled) {
+  background: rgba(226, 163, 61, 0.2);
+  border-color: var(--pos-1);
+}
+
+/* ------------------------------------------------------------------ glass */
+/*
+ * The macOS material treatment.
+ *
+ * One rule decides where blur goes: a surface gets it if a person would call
+ * it a pane — the top bar, the side panels, the popovers — and never if it is
+ * something sitting *on* a pane. The hero grid alone is 127 tiles; each blur
+ * is composited separately, and blurring all of them costs a frame to say
+ * nothing the pane behind them has not already said.
+ */
+
+:root {
+  /* Saturation is what separates a material from a grey scrim: macOS pulls
+     colour forward as it blurs, which is why vibrancy looks lit rather than
+     dirty. */
+  --glass: saturate(180%) blur(28px);
+  --glass-deep: saturate(190%) blur(34px);
+  /* The lit top edge every macOS pane has, and the shadow that seats it. */
+  --hairline: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --lift: 0 10px 28px -18px rgba(0, 0, 0, 0.75);
+}
+
+.topbar,
+.settings,
+.team,
+.panel,
+.analysis,
+.rebalance,
+.search,
+.modes,
+.sorts {
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  box-shadow: var(--hairline), var(--lift);
+}
+
+/*
+ * Window chrome rather than a card: it spans the whole width, so it gets the
+ * material and the hairline but none of the lift — a shadow under something
+ * with no edges reads as a smudge.
+ */
+.topbar {
+  background: rgba(226, 238, 255, 0.05);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  box-shadow: var(--hairline);
+}
+
+/*
+ * The one surface that floats over the board rather than sitting beside it,
+ * and the only place the blur is doing real work — behind it is a wall of hero
+ * art. Which is also why it is the most opaque material here: a popover is for
+ * reading, and 127 portraits smeared underneath is a texture, not a backdrop.
+ */
+.herocard {
+  background: rgba(24, 33, 45, 0.88);
+  border-color: rgba(255, 255, 255, 0.16);
+  backdrop-filter: var(--glass-deep);
+  -webkit-backdrop-filter: var(--glass-deep);
+  box-shadow:
+    var(--hairline),
+    0 24px 60px -20px rgba(0, 0, 0, 0.85);
+}
+
+/*
+ * Segmented controls, the macOS way round: the track is a recess and the
+ * selected segment is the piece raised out of it. The team-coloured underline
+ * each active segment already carries is more specific than this, so it
+ * survives.
+ */
+.modes,
+.sorts {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-active,
+.sort-active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.btn {
+  border-radius: 7px;
+  box-shadow: var(--hairline);
+}
+
+.btn:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.search {
+  border-radius: 8px;
+}
+
+.search:focus {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: var(--hairline), 0 0 0 3px rgba(120, 170, 255, 0.16);
+}
+
+/* Overlay scrollbars: present while you are in the column, gone otherwise. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+  background-clip: padding-box;
+}
+
+/*
+ * In the desktop shell on macOS the window is itself a vibrancy material
+ * (`vibrancy: "under-window"` in electron/main.mjs), so the page has to stay
+ * translucent for the desktop behind it to come through. Full screen has
+ * nothing behind it to sample, which is why the gradients stay: they carry the
+ * look on their own there, and tint the real material when windowed.
+ *
+ * `data-shell` and `data-os` are set in src/main.tsx from the user agent.
+ */
+html[data-shell="desktop"][data-os="mac"] body {
+  background-color: transparent;
+  background-image:
+    radial-gradient(46rem 30rem at 4% -10%, rgba(56, 180, 95, 0.22), transparent 58%),
+    radial-gradient(44rem 28rem at 99% -6%, rgba(224, 72, 61, 0.2), transparent 56%),
+    radial-gradient(58rem 42rem at 42% 112%, rgba(74, 168, 224, 0.18), transparent 60%),
+    linear-gradient(165deg, rgba(32, 44, 58, 0.82) 0%, rgba(21, 30, 40, 0.87) 48%, rgba(13, 19, 26, 0.92) 100%);
+}
+
+/* Draft intelligence: decisions first, supporting measurements on demand. */
+.analysis-intel {
+  --good: #4aef88;
+  --bad: #ff737b;
+  --mine: var(--good);
+  --enemy: var(--bad);
+  --text: #f4f7fc;
+  --text-dim: #bdcadb;
+  --intel-accent: #59bcff;
+  --intel-warning: #ffce58;
+  --intel-border: #3c5068;
+  --intel-good-rgb: 38, 226, 108;
+  --intel-bad-rgb: 255, 71, 83;
+  padding: 22px 26px 16px;
+  color: var(--text);
+  background: #0e1621;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--intel-border);
+  border-top: 3px solid var(--intel-accent);
+  box-shadow: 0 10px 35px #070d1644;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.analysis-intel [hidden] { display: none !important; }
+.analysis-intel button:focus-visible, .analysis-intel summary:focus-visible { outline: 2px solid var(--intel-accent); outline-offset: 3px; }
+.analysis-intel .good { color: var(--good); }
+.analysis-intel .bad { color: var(--bad); }
+.analysis-intel .even { color: var(--text-dim); }
+.analysis-intel .analysis-head { align-items: center; }
+.intel-brand { display: flex; align-items: center; gap: 11px; }
+.intel-brand-icon { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #397aad; border-radius: 11px; background: #153652; color: var(--intel-accent); font-size: 29px; }
+.intel-brand strong { display: block; font-size: 17px; font-weight: 650; letter-spacing: -.25px; }
+.intel-brand div > span { color: var(--text-dim); font-size: 11px; }
+.analysis-intel .btn { font-size: 12px; padding: 6px 12px; background: #1e2d3f; }
+.analysis-intel .tag { color: var(--text-dim); background: #1e2d3f; }
+.intel-tabs { display: flex; align-items: center; gap: 26px; border-bottom: 1px solid var(--intel-border); margin: 22px 0 0; }
+.intel-tabs > button { display: flex; align-items: center; gap: 8px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--text-dim); padding: 11px 1px 14px; font-weight: 600; }
+.intel-tabs > button[aria-pressed="true"] { color: var(--intel-accent); border-bottom-color: var(--intel-accent); }
+.intel-tabs > button > span { font-size: 10px; padding: 0 6px; border-radius: 4px; background: #1e2d3f; }
+.intel-live { display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--text-dim); font-size: 11px; }
+.intel-live i { width: 5px; height: 5px; border-radius: 50%; background: var(--good); }
+.intel-strategy { display: grid; grid-template-columns: 1fr 245px; align-items: center; gap: 40px; padding: 30px 0 26px; }
+.intel-eyebrow { display: block; color: var(--intel-accent); font-size: 10px; font-weight: 650; letter-spacing: 1.5px; }
+.intel-strategy h2 { max-width: 740px; margin: 10px 0 10px; font-size: clamp(23px, 2.25vw, 34px); font-weight: 630; letter-spacing: -.9px; line-height: 1.18; text-wrap: balance; }
+.intel-strategy p { max-width: 720px; margin: 0; color: #dce5f1; font-size: 13px; line-height: 1.7; }
+.intel-draft-score { display: flex; align-items: center; flex-direction: column; padding: 10px 16px; border-left: 1px solid var(--intel-border); text-align: center; }
+.intel-small { font-size: 10.5px; color: var(--text-dim); }
+.intel-draft-score > .intel-small { letter-spacing: 1.3px; }
+.intel-draft-score > strong { font-size: 45px; line-height: 1.3; font-weight: 550; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+.intel-draft-score > span:not(.intel-small) { font-size: 13px; }
+.intel-draft-score > small { font-size: 9.5px; color: var(--text-dim); margin-top: 6px; }
+.intel-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 16px 0; margin-bottom: 28px; border-block: 1px solid var(--intel-border); }
+.intel-metrics > div { padding: 0 20px; border-left: 1px solid var(--intel-border); }
+.intel-metrics > div:first-child { padding-left: 0; border: 0; }
+.intel-metrics > div:last-child { padding-right: 0; }
+.intel-metrics span { display: block; color: var(--text-dim); letter-spacing: 1px; font-size: 9px; font-weight: 600; }
+.intel-metrics strong { display: block; font-size: 21px; line-height: 1.5; font-weight: 580; margin: 4px 0; }
+.intel-metrics small { display: block; font-size: 10px; color: var(--text-dim); }
+.intel-plan-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 24px; margin-bottom: 28px; align-items: start; }
+.intel-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+.intel-section-head h3 { margin: 0; font-size: 15px; font-weight: 620; letter-spacing: -.1px; }
+.intel-section-head > span { font-size: 10px; color: var(--text-dim); }
+.intel-section-head p { font-size: 12px; color: var(--text-dim); margin: 6px 0 0; }
+.intel-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.intel-insight { min-width: 0; padding: 16px; border: 1px solid var(--intel-border); border-radius: 10px; background: #1b293a;
+  border-top-width: 3px; }
+.intel-insight.good { border-color: #286745; border-top-color: var(--good); background: #142a21; }
+.intel-insight.bad { border-color: #75404a; border-top-color: var(--bad); background: #2d1c24; }
+.intel-insight.neutral { border-color: #376180; border-top-color: var(--intel-accent); background: #142b40; }
+.intel-insight-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 9px; letter-spacing: 1px; font-weight: 650; }
+.intel-insight.neutral .intel-insight-label { color: var(--intel-accent); }
+.intel-number { opacity: 1; font-variant-numeric: tabular-nums; }
+.intel-insight h4 { color: #ecf1f9; font-size: 14px; font-weight: 600; line-height: 1.45; margin: 10px 0 7px; }
+.intel-insight p { font-size: 12px; line-height: 1.65; margin: 0; color: #dce5f1; }
+.intel-insight details { margin-top: 11px; color: var(--text-dim); font-size: 10px; }
+.intel-insight summary { cursor: pointer; width: fit-content; }
+.intel-insight details[open] summary { margin-bottom: 8px; color: var(--intel-accent); }
+.intel-insight details p { padding-top: 8px; border-top: 1px solid var(--intel-border); font-size: 11px; }
+.intel-timing-panel { border: 1px solid var(--intel-border); border-radius: 10px; padding: 17px; background: #172435; }
+.intel-chart-legend { display: flex; gap: 12px; font-size: 10px; flex-wrap: wrap; margin: 18px 0 10px; }
+.intel-chart-legend > span:last-child { color: var(--text-dim); margin-left: auto; font-size: 9px; }
+.intel-timing-chart { width: 100%; display: block; overflow: visible; }
+.intel-timing-chart text { font-size: 10px; fill: var(--text-dim); }
+.intel-chart-grid { stroke: #344860; }
+.intel-chart-zero { stroke: #8496ae; stroke-dasharray: 4 5; }
+.intel-chart-cursor { stroke: var(--intel-accent); stroke-dasharray: 3 4; }
+.intel-curve { fill: none; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; }
+.intel-curve.mine { stroke: var(--good); }
+.intel-curve.enemy { stroke: var(--bad); stroke-dasharray: 7 4; }
+.intel-point.mine { fill: var(--good); }
+.intel-point.enemy { fill: var(--bad); }
+.intel-windows { display: flex; gap: 5px; margin: 8px 0 0; }
+.intel-windows button { flex: 1; min-width: 0; background: #1e2d3f; border: 1px solid var(--intel-border); border-radius: 6px; color: var(--text-dim); padding: 7px 4px; }
+.intel-windows button[aria-pressed="true"] { background: #174467; border-color: var(--intel-accent); }
+.intel-windows span { display: block; font-size: 9px; }
+.intel-windows strong { font-size: 15px; font-weight: 600; }
+.intel-window-detail { min-height: 106px; padding: 14px 0 5px; }
+.intel-window-detail > strong { font-size: 12px; font-weight: 600; }
+.intel-window-detail > strong span { font-weight: 400; }
+.intel-window-detail p { color: var(--text-dim); font-size: 11px; line-height: 1.6; margin: 6px 0; }
+.intel-score-parts { padding-top: 12px; border-top: 1px solid var(--intel-border); margin-top: 8px; }
+.intel-score-parts h4 { margin: 0 0 9px; font-size: 11px; font-weight: 550; }
+.intel-score-parts > div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; color: var(--text-dim); }
+.intel-score-parts small { display: block; color: var(--text-dim); font-size: 9px; margin-top: 8px; }
+.intel-lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.intel-lane { border: 1px solid var(--intel-border); border-radius: 10px; padding: 16px; background: #1b293a; }
+.intel-lane h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.intel-lane-teams { display: flex; align-items: center; gap: 10px; margin: 15px 0 18px; }
+.intel-lane-teams > div { display: flex; flex: 1; gap: 8px; min-width: 0; }
+.intel-lane-teams > div:last-child { justify-content: flex-end; }
+.intel-lane-teams > div > span { min-width: 0; width: 65px; }
+.intel-lane-teams > div > span > span { display: block; color: var(--text-dim); font-size: 9px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intel-portrait { width: 48px; height: 29px; object-fit: cover; border-radius: 5px; border: 1px solid var(--intel-border); }
+.intel-initial { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 29px; border-radius: 5px; background: var(--intel-border); }
+.intel-lane-teams > b { color: var(--text-dim); font-size: 8px; font-weight: 500; }
+.intel-lane-read { display: flex; align-items: center; justify-content: space-between; font-size: 11px; gap: 6px; }
+.intel-lane-read > span { color: var(--text-dim); }
+.intel-lane-read > strong { font-size: 13px; }
+.intel-lane-share { height: 4px; border-radius: 4px; background: var(--bad); overflow: hidden; margin: 8px 0; }
+.intel-lane-share:empty { background: var(--intel-border); }
+.intel-lane-share > span { display: block; height: 100%; background: var(--good); border-right: 2px solid #172234; }
+.intel-lane > p { font-size: 9.5px; color: var(--text-dim); margin: 8px 0 16px; }
+.intel-tradeoff { margin-top: 12px; padding: 7px 9px; font-size: 10px; color: var(--intel-warning); background: #342c19; border-left: 3px solid var(--intel-warning); border-radius: 2px; }
+.intel-evidence { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--intel-border); font-size: 11px; color: var(--text-dim); }
+.intel-evidence > summary { display: flex; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; }
+.intel-evidence > summary::after { content: "+"; color: var(--intel-accent); }
+.intel-evidence[open] > summary::after { content: "−"; }
+.intel-evidence > summary > span:first-child { margin-right: auto; color: #dce5f1; }
+.intel-evidence-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; padding: 18px 0 0; }
+.intel-evidence-grid strong { font-size: 11px; color: #dce5f1; font-weight: 550; }
+.intel-evidence-grid p { margin: 6px 0; }
+.intel-evidence-grid small { font-size: 10px; }
+.intel-evidence > p { max-width: 1000px; margin-bottom: 0; line-height: 1.7; }
+.intel-matchups { padding: 24px 0 2px; }
+.intel-matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; margin-top: 25px; align-items: start; }
+.intel-matrix-scroll { overflow-x: auto; }
+.intel-matrix { width: 100%; border-spacing: 6px; table-layout: fixed; min-width: 540px; }
+.intel-matrix caption { caption-side: bottom; text-align: left; color: var(--text-dim); font-size: 10px; padding: 12px 6px 0; }
+.intel-matrix th { font-weight: 500; font-size: 10px; padding: 6px; }
+.intel-matrix thead th:first-child { color: var(--text-dim); font-size: 9px; text-align: left; letter-spacing: .5px; }
+.intel-matrix th > span { display: block; margin-top: 4px; }
+.intel-matrix th > small { display: block; color: var(--text-dim); font-size: 8px; margin-top: 2px; }
+.intel-matrix th > img { display: inline-block; width: 52px; height: 31px; }
+.intel-matrix td { text-align: center; }
+.intel-cell { position: relative; width: 100%; min-height: 60px; padding: 10px 5px; border-radius: 7px; border: 1px solid var(--intel-border); background: #1e2d3f; font-size: 18px; font-weight: 550; font-variant-numeric: tabular-nums; transition: border-color .15s; }
+.intel-cell:hover { border-color: #e4edf8; }
+.intel-cell[aria-pressed="true"] { outline: 2px solid var(--intel-accent); outline-offset: 1px; }
+.intel-cell > small { position: absolute; top: 3px; right: 6px; font-size: 10px; opacity: .8; }
+.intel-cell-empty { display: block; padding: 18px; border-radius: 7px; background: #1e2d3f; color: var(--text-dim); }
+.intel-pair-detail { padding: 22px; border: 1px solid var(--intel-border); border-radius: 10px; background: #1b293a; }
+.intel-pair-faces { display: flex; align-items: center; gap: 12px; margin: 22px 0 15px; }
+.intel-pair-faces .intel-portrait { width: 66px; height: 39px; }
+.intel-pair-faces > span { color: var(--text-dim); font-size: 9px; }
+.intel-pair-detail h3 { margin: 0 0 15px; font-size: 17px; font-weight: 600; }
+.intel-pair-detail h3 > span { display: block; font-size: 13px; color: var(--text-dim); font-weight: 400; margin-top: 4px; }
+.intel-pair-score { font-size: 35px; font-weight: 550; }
+.intel-pair-score small { font-size: 10px; color: var(--text-dim); font-weight: 400; }
+.intel-pair-detail > p { font-size: 12px; color: #dce5f1; }
+.intel-pair-detail dl { margin: 20px 0; }
+.intel-pair-detail dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--intel-border); font-size: 10px; }
+.intel-pair-detail dt { color: var(--text-dim); }
+.intel-pair-detail dd { margin: 0; text-align: right; }
+.intel-notice, .intel-empty { color: var(--text-dim); font-size: 11px; line-height: 1.7; padding: 12px; border-radius: 6px; background: #1e2d3f; }
+.intel-compact { display: flex; flex-direction: column; gap: 5px; padding: 16px 0 4px; }
+.intel-compact > strong { font-size: 17px; }
+.intel-compact > span { color: var(--text-dim); font-size: 12px; }
+.analysis-intel .analysis-grid { margin-top: 20px; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(275px, 1fr)); }
+.analysis-intel .analysis-card { border-radius: 10px; padding: 16px; background: #1b293a; }
+.analysis-intel .analysis-card-sub { font-size: 12px; line-height: 1.65; margin: 8px 0 16px; }
+.analysis-intel .analysis-foot { line-height: 1.7; font-size: 11px; }
+.analysis-intel .btn:hover { background: #2d4560; border-color: var(--intel-accent); }
+.intel-tabs > button:hover { color: #fff; }
+.intel-windows button:hover { border-color: var(--intel-accent); }
+.intel-insight summary { color: #e3ecf9; }
+.analysis-intel .stage-line-them { stroke-dasharray: 5 3; }
+.analysis-intel .stage-line { stroke-width: 2.5px; }
+@media (min-width: 1900px) {
+  .analysis-intel { padding: 26px 36px 20px; }
+  .intel-plan-grid { grid-template-columns: minmax(0, 2.25fr) minmax(350px, 1fr); }
+  .intel-insights { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .intel-insight { padding: 21px; }
+}
+@media (max-width: 1100px) {
+  .analysis-intel { padding: 18px; }
+  .intel-plan-grid { grid-template-columns: minmax(0, 1fr); }
+  .intel-timing-panel { max-width: none; }
+  .intel-timing-chart { max-height: 230px; }
+  .intel-metrics strong { font-size: 18px; }
+  .intel-matrix-layout { grid-template-columns: minmax(0, 1fr); }
+  .intel-pair-detail { display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; }
+  .intel-pair-detail > .intel-eyebrow, .intel-pair-detail > .intel-notice { grid-column: 1 / -1; }
+  .intel-evidence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .analysis-intel { margin: 0 8px; padding: 15px; }
+  .intel-strategy { grid-template-columns: 1fr; gap: 18px; padding: 24px 0; }
+  .intel-draft-score { border: 0; border-top: 1px solid var(--intel-border); padding-top: 16px; }
+  .intel-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 0; }
+  .intel-metrics > div:nth-child(3) { border: 0; padding-left: 0; }
+  .intel-insights, .intel-lanes { grid-template-columns: 1fr; }
+  .intel-tabs { gap: 20px; }
+  .intel-live { display: none; }
+  .intel-section-head { flex-wrap: wrap; gap: 5px; }
+  .intel-evidence > summary { flex-wrap: wrap; font-size: 10px; }
+  .intel-pair-detail { display: block; }
+  .intel-evidence-grid { grid-template-columns: 1fr; }
+  .analysis-intel .analysis-meta { margin-left: 0; }
+}
+
+/* The off-role shortlist under the pick panel. Set apart from the ranking
+ * above it on purpose — these heroes are below the role threshold, and the
+ * separation is what stops them reading as ordinary recommendations. */
+.off-role {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.off-role h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.off-role h3 .muted {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.off-role ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.off-role-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.off-role-pick:hover {
+  background: var(--bg-tile);
+  border-color: var(--line);
+}
+
+.off-role-name {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.off-role-pick .score {
+  margin-left: auto;
+}
+
+/* The part of a matchup row that came from the lane table rather than from
+ * Dotabuff. Small and inline with the name: it is a note about where the
+ * number came from, not a second number to compare. */
+.hc-seat {
+  margin-left: 6px;
+  font-size: 10px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}

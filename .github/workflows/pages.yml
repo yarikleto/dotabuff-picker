@@ -1,0 +1,58 @@
+name: Website
+
+# Every push to main publishes the picker to GitHub Pages. The data files are
+# committed with the code, so publishing fresh numbers is an ordinary commit —
+# see docs/website.md.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push queues behind a deployment that is already running rather than
+# cancelling it halfway through publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # No dependency cache: whatever this job builds is published as-is.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # The site needs nothing from Electron, and its binary is the largest
+      # download in the tree.
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+      # A failing test keeps the last good version of the site live.
+      - run: npm test
+
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

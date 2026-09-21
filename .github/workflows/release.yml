@@ -1,0 +1,63 @@
+name: Desktop build
+
+# Tag a version to cut a release:
+#   npm version minor && git push --follow-tags
+# Anything else runs the same build without publishing, so a broken package is
+# found before a tag exists rather than after.
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, os: macos-latest, flag: --mac }
+          - { name: Windows, os: windows-latest, flag: --win }
+          - { name: Linux, os: ubuntu-latest, flag: --linux }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The scraper and scoring tests are platform-independent; running them
+      # once is enough, and it keeps the other two jobs to what they are for.
+      - name: Test
+        if: matrix.os == 'ubuntu-latest'
+        run: npm test
+
+      - name: Build the web bundle
+        run: npm run build
+
+      - name: Package
+        run: npx --no-install electron-builder ${{ matrix.flag }} --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Nothing to sign with, and auto-discovery would fail the mac job on
+          # a runner that happens to have a keychain identity.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage

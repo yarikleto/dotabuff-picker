@@ -1,0 +1,54 @@
+# Packaging for the desktop build. `npm run dist` builds for the machine you
+# are on; CI (.github/workflows/release.yml) runs all three.
+#
+# Data is baked into the build: matchups.json and friends ship inside the app,
+# so refreshing the numbers means re-running the collectors, committing the
+# files and cutting a new tag — see docs/desktop.md.
+
+appId: io.github.yarikleto.dotabuff-picker
+productName: Dota 2 Draft Picker
+copyright: Copyright © 2026 yarikleto · data from Dotabuff, STRATZ and OpenDota
+
+directories:
+  output: release
+  buildResources: build
+
+# The renderer is already bundled by Vite and the main process imports nothing
+# but Electron builtins, so this is the whole app.
+files:
+  - dist/**
+  - electron/**
+  - "!electron/*.test.mjs"
+  - package.json
+
+# No native modules anywhere in the tree.
+npmRebuild: false
+asar: true
+
+mac:
+  category: public.app-category.games
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  # Unsigned: the first launch needs a right-click -> Open, or one xattr
+  # command. docs/desktop.md spells it out.
+  identity: null
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  category: Game
+  target:
+    - target: AppImage
+      arch: [x64]
+
+publish:
+  provider: github

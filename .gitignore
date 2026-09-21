@@ -1,0 +1,12 @@
+node_modules
+dist
+release
+scripts/.cache
+tsconfig.tsbuildinfo
+vite.config.ts.timestamp-*
+.DS_Store
+*.log
+.env
+.env.*
+# Claude Code writes each person's permission grants here.
+.claude/settings.local.json
