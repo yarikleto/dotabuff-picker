@@ -85,6 +85,7 @@ export function PositionFilter({
       <button
         type="button"
         className={`pos-chip ${value === null ? "pos-chip-active" : ""}`}
+        aria-pressed={value === null}
         onClick={() => onChange(null)}
         title={tip(null)}
         disabled={disabled}
@@ -103,6 +104,7 @@ export function PositionFilter({
           ]
             .filter(Boolean)
             .join(" ")}
+          aria-pressed={value === position}
           onClick={() => onChange(value === position ? null : position)}
           title={tip(position)}
           disabled={disabled}

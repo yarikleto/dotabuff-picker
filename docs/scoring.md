@@ -498,8 +498,8 @@ total = draftBalance(board arranged this way).advantage          ← draft
       + mean over my heroes of ( metaWeight × (positionWinRate − 50) ) ← seats
 ```
 
-**draft** is the headline number the top bar already shows — matchups, cohesion
-and timing — recomputed with the heroes in their new seats. It moves because the
+**draft** is the headline number on the Draft analysis button — matchups,
+cohesion and timing — recomputed with the heroes in their new seats. It moves because the
 lane weighting moves: a pairing that used to count double now counts once, and
 one that did not now does.
 

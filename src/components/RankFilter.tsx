@@ -23,12 +23,12 @@ export function RankFilter({ value, available, onChange }: RankFilterProps) {
       : "Run `npm run positions` to read hero figures from STRATZ by rank.";
 
   return (
-    <div className="position-filter rank-filter" role="group" aria-label="Rank">
+    <div className="seg seg-sm" role="group" aria-label="Rank">
       {RANK_BANDS.map((band) => (
         <button
           key={band}
           type="button"
-          className={`pos-chip ${value === band ? "pos-chip-active" : ""}`}
+          className="seg-btn"
           aria-pressed={value === band}
           onClick={() => onChange(band)}
           disabled={!available.includes(band)}

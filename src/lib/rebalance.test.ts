@@ -287,7 +287,7 @@ test("an off-role board leads the button with the fact, not with a figure", () =
   };
   const report = rebalance(data, stranded, settings)!;
 
-  assert.equal(buttonLabel(report, false), "Rebalance — 2 off-role");
+  assert.equal(buttonLabel(report), "Rebalance — 2 off-role");
   assert.equal(report.best, report.seatFixes[0], "and the repair leads the panel");
 });
 
@@ -763,7 +763,7 @@ test("the button and the panel are handed the same words about the same option",
   const report = rebalance(data, draft, settings)!;
   const best = report.best!;
 
-  assert.equal(buttonLabel(report, false), `Rebalance +2.8 overall`);
+  assert.equal(buttonLabel(report), `Rebalance +2.8 overall`);
   assert.equal(
     headlineFor(best).unit,
     "overall",
@@ -786,8 +786,7 @@ test("a two-hero rotation is called a swap, because that is what a captain calls
 });
 
 test("the button falls back to a plain label when there is nothing to report", () => {
-  assert.equal(buttonLabel(null, false), "Rebalance");
-  assert.equal(buttonLabel(null, true), "Hide rebalance");
+  assert.equal(buttonLabel(null), "Rebalance");
 });
 
 test("a seat reading moves what an arrangement is worth", () => {

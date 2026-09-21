@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { buildBriefing } from "../lib/draftInsights";
 import { EvidenceStrip, GamePlan, MatchupMap } from "./DraftBriefing";
 import type { Dataset } from "../types";
 import { HeroPortrait } from "./HeroPortrait";
+import { useSheetFocus } from "./useSheetFocus";
 import { formatSigned } from "../lib/scoring";
 import { NOISE, slotLabel, toMarkdown } from "../lib/analysis";
 import type {
@@ -559,8 +560,8 @@ function SynergyRow({ pair, side }: { pair: SynergyPair; side: 1 | -1 }) {
 /**
  * The draft taken apart.
  *
- * The badge in the top bar is one number, which is the right size for a glance
- * and no use to a captain who has to tell four other people what the plan is.
+ * The figure on the Draft analysis button is one number, which is the right size
+ * for a glance and no use to a captain who has to tell four other people what the plan is.
  * This is that number's working: where we are losing, when we are meant to win,
  * who is carrying and who is struggling — with the sample size beside each
  * claim, because half of these numbers deserve less confidence than they look
@@ -583,17 +584,30 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
    * reader unsure whether anything happened — so it says so for a moment.
    */
   const [copied, setCopied] = useState<"ok" | "failed" | null>(null);
+  const panel = useRef<HTMLElement>(null);
+  useSheetFocus(panel, onClose);
   const points = briefing.insights.slice(0, 4).map((insight) => `${insight.title} — ${insight.action}`);
   const { coverage, stages, sides } = analysis;
   const thin = coverage.matchupsPossible > 0 && coverage.matchups / coverage.matchupsPossible < 0.6;
   const synergyPairs = analysis.mySynergyPairs.length + analysis.theirSynergyPairs.length;
 
   return (
-    <section className="analysis analysis-intel" aria-label="Draft analysis">
-      <header className="analysis-head">
-        <div className="intel-brand"><span className="intel-brand-icon" aria-hidden="true">◈</span><div><strong>Draft intelligence</strong><span>Read the draft. Find the plan.</span></div></div>
+    <section
+      className="sheet analysis"
+      ref={panel}
+      tabIndex={-1}
+      role="region"
+      aria-labelledby="analysis-title"
+    >
+      <header className="sheet-head">
+        <div className="sheet-title">
+          <h2 id="analysis-title">Draft analysis</h2>
+          <p className="muted">
+            How the two line-ups compare and what to play for. Updates as heroes go on the board.
+          </p>
+        </div>
 
-        <div className="analysis-meta">
+        <div className="sheet-actions">
           {!analysis.complete && (
             <span className="tag" title="Sections fill in as heroes go on the board">
               draft in progress
@@ -640,14 +654,14 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
             type="button"
             className="btn"
             onClick={() => setCompact((v) => !v)}
-            aria-expanded={!compact}
+            aria-pressed={compact}
             title={
               compact
-                ? "Show the lane, timing and pairing tables"
+                ? "Show the lane, timing and pairing tables again"
                 : "Keep the verdict and the talking points, give the board back its room"
             }
           >
-            {compact ? "Expand" : "Compact"}
+            Compact
           </button>
           <button type="button" className="btn" onClick={onClose}>
             Close
@@ -665,12 +679,22 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
       )}
 
       {!compact && <>
-        <nav className="intel-tabs" aria-label="Analysis views">
-          {([['plan', 'Game plan'], ['matchups', 'Matchup map'], ['details', 'Deep dive']] as const).map(([id, label]) =>
-            <button type="button" key={id} aria-pressed={view === id} onClick={() => setView(id)}>{label}{id === 'matchups' && <span>{coverage.matchups}</span>}</button>
-          )}
-          <span className="intel-live"><i /> Updates with your draft</span>
-        </nav>
+        <div className="analysis-views">
+          <div className="seg" role="group" aria-label="Analysis views">
+            {([["plan", "Game plan"], ["matchups", "Matchup map"], ["details", "Deep dive"]] as const).map(([id, label]) => (
+              <button
+                type="button"
+                key={id}
+                className="seg-btn tone-accent"
+                aria-pressed={view === id}
+                onClick={() => setView(id)}
+              >
+                {label}
+                {id === "matchups" && <span className="num-chip">{coverage.matchups}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
         {view === "plan" && <GamePlan analysis={analysis} briefing={briefing} heroes={data.bySlug} />}
         {view === "matchups" && <MatchupMap analysis={analysis} heroes={data.bySlug} />}
       </>}

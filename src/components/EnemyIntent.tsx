@@ -102,13 +102,13 @@ export function EnemyIntent({
                    * second is only available while it is still on the board.
                    */}
                   <div className="intent-actions">
-                    <button type="button" className="intent-act" onClick={() => onBan(r.hero.slug)}>
+                    <button type="button" className="btn btn-small" onClick={() => onBan(r.hero.slug)}>
                       Ban {r.hero.name}
                     </button>
                     {r.answerLeft ? (
                       <button
                         type="button"
-                        className="intent-act intent-act-answer"
+                        className="btn btn-small intent-act-answer"
                         onClick={() => onPick(r.answerLeft!.slug)}
                         title={
                           `${r.answerLeft.name} still answers ${r.hero.name} by ` +

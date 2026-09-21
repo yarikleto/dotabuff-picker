@@ -37,7 +37,7 @@ export function TimingExplorer({ analysis }: { analysis: DraftAnalysis }) {
     }).join(" ");
   };
   return <>
-    <div className="intel-chart-legend"><span className="good">● Your team</span><span className="bad">● Enemy team</span><span>Relative timing skew</span></div>
+    <div className="intel-chart-legend"><span className="mine">● Your team</span><span className="enemy">● Enemy team</span><span>Relative timing skew</span></div>
     <svg className="intel-timing-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Relative timing trends by game duration; select a window below for details">
       {[-span, 0, span].map((v) => <g key={v}>
         <line x1={left} x2={right} y1={y(v)} y2={y(v)} className={v === 0 ? "intel-chart-zero" : "intel-chart-grid"} />
@@ -52,8 +52,8 @@ export function TimingExplorer({ analysis }: { analysis: DraftAnalysis }) {
         <text x={x(i)} y={151} textAnchor="middle">{b.short}</text>
       </g>)}
     </svg>
-    <div className="intel-windows" aria-label="Explore game-length windows">
-      {buckets.map((b) => <button type="button" key={b.key} aria-pressed={b === selected} onClick={() => select(b.key)}>
+    <div className="seg intel-windows" role="group" aria-label="Game-length windows">
+      {buckets.map((b) => <button type="button" key={b.key} className="seg-btn tone-accent" aria-pressed={b === selected} onClick={() => select(b.key)}>
         <span>{b.short}</span><strong className={b.covered && b.theirCovered ? tone(b.edge) : "even"}>{b.covered && b.theirCovered ? signed(b.edge) : "—"}</strong>
       </button>)}
     </div>
@@ -72,35 +72,35 @@ export function GamePlan({ analysis: a, briefing: b, heroes }: { analysis: Draft
   const threat = b.threats[0];
   return <div className="intel-overview">
     <div className="intel-strategy">
-      <div><span className="intel-eyebrow">{a.complete ? "THE DRAFT, DECODED" : "LIVE DRAFT READ"}</span><h2>{b.title}</h2><p>{b.description}</p></div>
-      <div className="intel-draft-score"><span className="intel-small">DRAFT EDGE</span><strong className={hasMatchups ? tone(a.advantage) : "even"}>{hasMatchups ? signed(a.advantage) : "—"}</strong><span>{hasMatchups ? a.verdict.label : "Insufficient matchup data"}</span><small>Comparison signal · not win probability</small></div>
+      <div><h2>{b.title}</h2><p>{b.description}</p></div>
+      <div className="intel-draft-score"><span className="intel-label">Draft edge</span><strong className={hasMatchups ? tone(a.advantage) : "even"}>{hasMatchups ? signed(a.advantage) : "—"}</strong><span>{hasMatchups ? a.verdict.label : "Insufficient matchup data"}</span><small>Comparison signal · not win probability</small></div>
     </div>
     <div className="intel-metrics">
-      <div><span>BEST TIMING</span><strong>{b.bestWindow?.short ?? (b.timingComplete ? "No clear edge" : "Unknown")}</strong><small>{b.bestWindow ? `${signed(b.bestWindow.edge)} relative timing skew` : b.timingComplete ? "No window clears the noise floor" : "Both lineups need full timing data"}</small></div>
-      <div><span>OPENING PRESSURE</span><strong>{a.lanesResolved && measuredLanes > 0 ? `${b.pressuredLanes.length} lane${b.pressuredLanes.length === 1 ? "" : "s"}` : "Unknown"}</strong><small>{a.lanesResolved && measuredLanes > 0 ? (b.pressuredLanes.map((l) => l.label).join(" · ") || `${measuredLanes}/3 lanes measured · none clearly pressured`) : "Assign positions and collect lane records"}</small></div>
-      <div><span>WIDEST ENEMY THREAT</span><strong>{threat?.hero.name ?? (hasMatchups ? "None stands out" : "Unknown")}</strong><small>{threat ? `${threat.victims.length} unfavorable matchups · ${threat.covered}/${a.sides.mine} measured` : "Based on whole-game matchups"}</small></div>
-      <div><span>GAMES BEFORE YOUR WINDOW</span><strong>{b.exposure !== null ? `${Math.round(b.exposure * 100)}%` : "—"}</strong><small>{b.firstWindow ? `Before ${b.firstWindow.label.toLowerCase()} · population sample` : "No fully measured favorable window"}</small></div>
+      <div><span className="intel-label">Best timing</span><strong>{b.bestWindow?.short ?? (b.timingComplete ? "No clear edge" : "Unknown")}</strong><small>{b.bestWindow ? `${signed(b.bestWindow.edge)} relative timing skew` : b.timingComplete ? "No window clears the noise floor" : "Both lineups need full timing data"}</small></div>
+      <div><span className="intel-label">Opening pressure</span><strong>{a.lanesResolved && measuredLanes > 0 ? `${b.pressuredLanes.length} lane${b.pressuredLanes.length === 1 ? "" : "s"}` : "Unknown"}</strong><small>{a.lanesResolved && measuredLanes > 0 ? (b.pressuredLanes.map((l) => l.label).join(" · ") || `${measuredLanes}/3 lanes measured · none clearly pressured`) : "Assign positions and collect lane records"}</small></div>
+      <div><span className="intel-label">Widest enemy threat</span><strong>{threat?.hero.name ?? (hasMatchups ? "None stands out" : "Unknown")}</strong><small>{threat ? `${threat.victims.length} unfavorable matchups · ${threat.covered}/${a.sides.mine} measured` : "Based on whole-game matchups"}</small></div>
+      <div><span className="intel-label">Games before your window</span><strong>{b.exposure !== null ? `${Math.round(b.exposure * 100)}%` : "—"}</strong><small>{b.firstWindow ? `Before ${b.firstWindow.label.toLowerCase()} · population sample` : "No fully measured favorable window"}</small></div>
     </div>
     <div className="intel-plan-grid">
       <section className="intel-playbook">
-        <div className="intel-section-head"><h3>Your playbook</h3><span>Suggested plan · evidence below each call</span></div>
+        <h3 className="sheet-section">Your playbook<span className="muted"> — a suggested plan, with the evidence under each call</span></h3>
         {b.insights.length ? <div className="intel-insights">{b.insights.map((insight, i) => <article key={insight.id} className={`intel-insight ${insight.tone}`}>
           <div className="intel-insight-label"><span>{insight.label}</span><span className="intel-number">{String(i + 1).padStart(2, "0")}</span></div>
           <h4>{insight.title}</h4><p>{insight.action}</p><details><summary>Why this matters</summary><p>{insight.evidence}</p></details>
         </article>)}</div> : <div className="intel-empty">No measured edge clears the noise floor yet. Add picks or inspect the matchup map to see what is known.</div>}
       </section>
-      <aside className="intel-timing-panel"><div className="intel-section-head"><h3>The timing battle</h3><span>Explore a window</span></div><TimingExplorer analysis={a} />
-        <div className="intel-score-parts"><h4>What moves the draft score</h4>{[
+      <aside className="intel-timing-panel"><h3 className="sheet-section">Timing<span className="muted"> — pick a window</span></h3><TimingExplorer analysis={a} />
+        <div className="intel-score-parts"><h4 className="intel-label">What moves the draft score</h4>{[
           ["Matchups", a.counter], ["Team chemistry", a.cohesionContribution], ["Early cover", a.earlyEdge],
         ].map(([label, value]) => <div key={label}><span>{label}</span><strong className={tone(value as number)}>{signed(value as number)}</strong></div>)}<small>Weighted contributions; totals may differ by 0.1 after rounding.</small></div>
       </aside>
     </div>
-    <div className="intel-section-head"><h3>Three lanes. Three different jobs.</h3><span>{a.lanePlan === "swapped" ? "Swapped lanes" : "Standard lanes"}</span></div>
+    <h3 className="sheet-section">Lanes<span className="muted">{a.lanePlan === "swapped" ? " — swapped: safe duo against safe duo" : " — standard deployment"}</span></h3>
     {!a.lanesResolved && <p className="intel-notice">Assign every drafted hero a position for a complete lane plan.</p>}
     <div className="intel-lanes">{a.lanes.filter((l) => l.key !== "map").map((l) => {
       const result = l.outcome?.result;
       const read = !a.lanesResolved ? "Provisional lane" : result === undefined ? "Awaiting lane data" : result <= -3 ? "Protect & recover" : result >= 3 ? "Establish pressure" : "Play for small advantages";
-      return <article key={l.key} className="intel-lane"><div className="intel-section-head"><h4>{l.label}</h4><span className={result === undefined ? "even" : tone(result, 3)}>{read}</span></div>
+      return <article key={l.key} className="intel-lane"><div className="intel-card-head"><h4>{l.label}</h4><span className={result === undefined ? "even" : tone(result, 3)}>{read}</span></div>
         <div className="intel-lane-teams"><div>{l.mine.map((s) => <span key={s.slug} title={s.name}><Face slot={s} heroes={heroes} /><span>{s.name}</span></span>)}</div><b>VS</b><div>{l.theirs.map((s) => <span key={s.slug} title={s.name}><Face slot={s} heroes={heroes} /><span>{s.name}</span></span>)}</div></div>
         <div className="intel-lane-read"><span>Expected lane share</span><strong className={result === undefined ? "even" : tone(result, 3)}>{result === undefined ? "—" : `${Math.round(50 + result)}% ours`}</strong></div>
         <div className="intel-lane-share" aria-hidden="true">{result !== undefined && <span style={{ width: `${50 + result}%` }} />}</div>
@@ -123,15 +123,15 @@ export function MatchupMap({ analysis: a, heroes }: { analysis: DraftAnalysis; h
   const selected = visible.find((p) => keyOf(p.mine.slug, p.theirs.slug) === selectedKey) ?? fallback;
   const sorted = (slots: LineupSlot[]) => [...slots].sort((x, y) => (x.position ?? 6) - (y.position ?? 6));
   return <div className="intel-matchups">
-    <div className="intel-section-head"><div><h3>Every matchup, in one view</h3><p>Read across for your hero’s problems. Read down for an enemy’s reach. Select a cell to inspect the evidence.</p></div><button type="button" className="btn" aria-pressed={laneOnly} onClick={() => setLaneOnly(!laneOnly)}>{laneOnly ? "Lane opponents only" : "All matchups"}</button></div>
+    <div className="intel-head-row"><h3 className="sheet-section">Every matchup<span className="muted"> — across for your hero’s problems, down for an enemy’s reach; select a cell for its evidence</span></h3><div className="seg seg-sm" role="group" aria-label="Which matchups"><button type="button" className="seg-btn" aria-pressed={!laneOnly} onClick={() => setLaneOnly(false)}>All matchups</button><button type="button" className="seg-btn" aria-pressed={laneOnly} onClick={() => setLaneOnly(true)}>Lane opponents</button></div></div>
     {laneOnly && !a.lanesResolved && <p className="intel-notice">Positions are incomplete. Only confirmed lane opponents are shown.</p>}
     <div className="intel-matrix-layout"><div className="intel-matrix-scroll"><table className="intel-matrix"><caption>Whole-game matchup edge · positive favors your hero · ◇ lane opponent · — no usable sample</caption><thead><tr><th scope="col">YOUR TEAM ↓<br />ENEMY TEAM →</th>{sorted(a.lineups.enemy).map((s) => <th key={s.slug} scope="col"><Face slot={s} heroes={heroes} /><span>{s.name}</span><small>POS {s.position ?? "?"}</small></th>)}</tr></thead><tbody>{sorted(a.lineups.mine).map((s) => <tr key={s.slug}><th scope="row"><Face slot={s} heroes={heroes} /><span>{s.name}</span><small>POS {s.position ?? "?"}</small></th>{sorted(a.lineups.enemy).map((e) => {
       const p = pairMap.get(keyOf(s.slug, e.slug));
       const filtered = laneOnly && !p?.sameLane;
-      return <td key={e.slug}>{p && !filtered ? <button type="button" className={`intel-cell ${tone(p.advantage)}`} aria-pressed={p === selected} aria-label={`${s.name} versus ${e.name}: ${signed(p.advantage)} points${p.sameLane ? ", lane opponent" : ""}`} onClick={() => select(keyOf(s.slug, e.slug))} style={{ backgroundColor: Math.abs(p.advantage) < NOISE ? undefined : `rgba(var(${p.advantage > 0 ? "--intel-good-rgb" : "--intel-bad-rgb"}), ${0.12 + Math.min(Math.abs(p.advantage) / 8, 1) * 0.2})` }}>{signed(p.advantage)}{p.sameLane && <small aria-hidden="true">◇</small>}</button> : <span className="intel-cell-empty" title={filtered ? "Outside the lane filter" : "No sample above your match threshold"}>{filtered && p ? "·" : "—"}</span>}</td>;
+      return <td key={e.slug}>{p && !filtered ? <button type="button" className={`intel-cell ${tone(p.advantage)}`} aria-pressed={p === selected} aria-label={`${s.name} versus ${e.name}: ${signed(p.advantage)} points${p.sameLane ? ", lane opponent" : ""}`} onClick={() => select(keyOf(s.slug, e.slug))} style={{ backgroundColor: Math.abs(p.advantage) < NOISE ? undefined : `color-mix(in srgb, var(${p.advantage > 0 ? "--good" : "--bad"}) ${Math.round(12 + Math.min(Math.abs(p.advantage) / 8, 1) * 20)}%, transparent)` }}>{signed(p.advantage)}{p.sameLane && <small aria-hidden="true">◇</small>}</button> : <span className="intel-cell-empty" title={filtered ? "Outside the lane filter" : "No sample above your match threshold"}>{filtered && p ? "·" : "—"}</span>}</td>;
     })}</tr>)}</tbody></table></div>
       <aside className="intel-pair-detail" aria-live="polite">{selected ? <>
-        <span className="intel-eyebrow">MATCHUP INTELLIGENCE</span><div className="intel-pair-faces"><Face slot={selected.mine} heroes={heroes} /><span>VS</span><Face slot={selected.theirs} heroes={heroes} /></div>
+        <span className="intel-label">Selected matchup</span><div className="intel-pair-faces"><Face slot={selected.mine} heroes={heroes} /><span>VS</span><Face slot={selected.theirs} heroes={heroes} /></div>
         <h3>{selected.mine.name}<span> vs {selected.theirs.name}</span></h3><strong className={`intel-pair-score ${tone(selected.advantage)}`}>{signed(selected.advantage)}<small> matchup points</small></strong>
         <p>{Math.abs(selected.advantage) < NOISE ? "Inside the noise floor. Neither hero has a clear statistical edge." : `${selected.advantage > 0 ? selected.mine.name : selected.theirs.name} has the favorable whole-game matchup.`}</p>
         <dl><div><dt>Match sample</dt><dd>{selected.matches.toLocaleString()}</dd></div><div><dt>Deployment</dt><dd>{selected.sameLane ? "Lane opponents" : "Across the map"}</dd></div><div><dt>Source disagreement</dt><dd>{selected.spread.toFixed(1)} points</dd></div></dl>
@@ -148,7 +148,7 @@ export function EvidenceStrip({ analysis: a, data }: { analysis: DraftAnalysis; 
   const timingRows = timed.reduce((sum, b) => sum + b.covered + b.theirCovered, 0);
   const timingPossible = (a.sides.mine + a.sides.enemy) * data.timingBuckets.length;
   const laneRows = a.lanes.filter((l) => l.key !== "map");
-  return <details className="intel-evidence"><summary><span>◈ Evidence & coverage</span><span>{a.coverage.matchups}/{a.coverage.matchupsPossible} matchups · {a.coverage.synergies}/{a.coverage.synergiesPossible} partnerships</span></summary><div className="intel-evidence-grid">
+  return <details className="intel-evidence"><summary><span>Evidence & coverage</span><span>{a.coverage.matchups}/{a.coverage.matchupsPossible} matchups · {a.coverage.synergies}/{a.coverage.synergiesPossible} partnerships</span></summary><div className="intel-evidence-grid">
     <div><strong>Matchups · Dotabuff</strong><p>{a.coverage.matchups}/{a.coverage.matchupsPossible} usable pairings</p><small>Collected {dated(data.generatedAt)}</small></div>
     <div><strong>Partnerships · OpenDota</strong><p>{a.coverage.synergies}/{a.coverage.synergiesPossible} usable pairings</p><small>Collected {dated(data.synergyGeneratedAt)}</small></div>
     <div><strong>Game length · OpenDota</strong><p>{timingRows}/{timingPossible} hero-window records</p><small>Collected {dated(data.timingGeneratedAt)}</small></div>

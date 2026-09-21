@@ -135,11 +135,13 @@ unstarred hero near the top may be a setting.
 
 ## Reading the draft
 
-The badge in the top bar opens **Draft intelligence**. Its signed score is a
+**Draft analysis** is the first of the top bar's actions. It carries the
+draft's signed score and opens the analysis above the board; until both teams
+have a hero it is greyed out and its tooltip says what it needs. The score is a
 comparison signal built from weighted matchup, synergy and early-cover terms,
 not a predicted win probability.
 
-The analyzer opens on **Game plan**:
+The analysis opens on **Game plan**:
 
 - A draft-specific strategic headline, followed by the best timing window,
   opening lane pressure, widest enemy threat, and the share of sampled games
@@ -163,7 +165,8 @@ unassigned heroes remain visible. Values inside the noise floor stay neutral.
 
 **Deep dive** retains the full numerical breakdown below. **Compact** keeps a
 short actionable briefing; **Copy briefing** exports the plan and supporting
-measurements. **Evidence & coverage** lists source dates and denominators.
+measurements. **Close**, the button again, or `Esc` while the panel has focus
+puts it away. **Evidence & coverage** lists source dates and denominators.
 Coverage is not prediction confidence. Incomplete drafts are provisional, and
 whole-draft timing advice requires every drafted hero to have data in every
 window. Missing records are never treated as neutral opponents.
@@ -253,7 +256,7 @@ and the header carries the coverage — `18/25 matchups · 14/20 pairings` — s
 confident-looking number built on six pairings is visibly that. Anything without
 a big enough sample is left out rather than guessed.
 
-**Copy** puts the whole read-out on the clipboard as text — verdict, talking
+**Copy briefing** puts the whole read-out on the clipboard as text — verdict, talking
 points, lanes, timings, threats and the coverage line. A draft plan is worth
 nothing if the other four cannot see it, and the coverage travels with the
 numbers because the person receiving a paste cannot ask how many pairings were
@@ -282,9 +285,8 @@ the board fills, so the number got calmer the more it knew. Use it to rank two
 drafts against each other, not to predict a match.
 
 **Compact** drops the tables and keeps the verdict and the talking points, which
-is the shape you want mid-draft: the panel is capped at 45% of the window and
-scrolls itself, so the hero grid below stays usable either way and you can keep
-picking while the numbers move.
+is the shape you want mid-draft: the panel shrinks to a few lines, so the hero
+grid below stays usable and you can keep picking while the numbers move.
 
 ## Positions
 

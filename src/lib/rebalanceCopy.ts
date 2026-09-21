@@ -37,7 +37,7 @@ export interface Headline {
  * What an arrangement is ranked on is the draft figure *plus* how well the five
  * suit the seats they would take. Only the first half is the number the rest of
  * the app prints, so calling the sum "board" put a figure three points away from
- * the badge under a word that claimed to be the badge.
+ * the draft score under a word that claimed to be the draft score.
  */
 export const TOTAL_UNIT = "overall";
 
@@ -154,7 +154,7 @@ export const breakdownOf = (option: RebalanceOption): string =>
  * fix is one seat away. The figure never appears without the word that says what
  * it measures.
  */
-export function buttonLabel(report: RebalanceReport | null, open: boolean): string {
+export function buttonLabel(report: RebalanceReport | null): string {
   const best = report?.best;
   // A hero in a seat they do not play is a fact about the board, not a figure,
   // and it outranks one — the button says what is wrong rather than what the
@@ -167,7 +167,7 @@ export function buttonLabel(report: RebalanceReport | null, open: boolean): stri
     return `Rebalance ${formatSigned(best.gain.total, 1)} ${TOTAL_UNIT}`;
   }
   if (best) return `Rebalance ${formatSigned(best.repairedLane!.delta, 1)} ${best.repairedLane!.short}`;
-  return open ? "Hide rebalance" : "Rebalance";
+  return "Rebalance";
 }
 
 export function buttonTitle(report: RebalanceReport | null, readiness: Readiness): string {

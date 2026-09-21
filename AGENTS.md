@@ -47,6 +47,14 @@ npm run readme:images   # re-render docs/assets/banner.jpg and screenshot.jpg
   and file access stay in the scripts that call them.
 - `src/lib/*.test.ts` runs straight off the TypeScript: Node strips the types
   and `scripts/ts-resolve.mjs` resolves the extensionless imports.
+- Every control in `src/styles.css` is one of: `.btn` for an action
+  (`.btn-primary` for the one the top bar leads with, `.btn-alert` when it has
+  found something, `.btn-danger` for Reset, `.btn-small` inside a panel),
+  `.seg` + `.seg-btn` for a choice between a few options, `.pos-chip` when the
+  options are positions, `.link-btn` for a quiet inline action, and `.tag` for
+  status, which is never clickable. An open panel or pressed toggle shows
+  through `aria-expanded` / `aria-pressed`, not a reworded label. Colours,
+  radii and fills come from the `:root` tokens; the wide panels share `.sheet`.
 
 ## Licensing
 

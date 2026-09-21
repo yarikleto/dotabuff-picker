@@ -64,6 +64,22 @@ const SORT_HINT: Record<SortMode, string> = {
   ban: "Order the whole pool by the same score as the ban suggestions",
 };
 
+/** The underline each sort wears when chosen: the colour of the slot it arms. */
+const SORT_TONE: Record<SortMode, string> = {
+  attr: "",
+  pick: "tone-mine",
+  ban: "tone-banned",
+};
+
+function shortDate(iso: string): string {
+  const date = new Date(iso);
+  const thisYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString(
+    undefined,
+    thisYear ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" },
+  );
+}
+
 export default function App() {
   const [loadedDataset, setLoadedDataset] = useState<Dataset>(() => emptyDataset());
   const [loading, setLoading] = useState(true);
@@ -81,7 +97,7 @@ export default function App() {
   const [banSide, setBanSide] = useState<BanSide>("mine");
   const [showSettings, setShowSettings] = useState(false);
   /**
-   * The draft read-out, opened from the badge in the top bar. Closed by
+   * The draft read-out, opened from the Draft analysis button. Closed by
    * default: mid-draft the suggestion lists are what you want on screen, and
    * this is for the pause afterwards when someone has to explain the plan.
    */
@@ -288,12 +304,19 @@ export default function App() {
   /**
    * The full read-out behind the headline number. Worked out whenever both
    * sides have a hero, whether or not the panel is open — it is the source of
-   * the badge as well, so the two can never say different things.
+   * the figure on its button as well, so the two can never say different things.
    */
   const analysis = useMemo(
     () => (dataset.hasData ? analyseDraft(dataset, draft, settings, TEAM_SIZE) : null),
     [dataset, draft, settings],
   );
+
+  // The panel takes focus when it mounts, so it must only ever mount from a
+  // click — not reappear on its own when the next enemy hero goes in.
+  const hasAnalysis = analysis !== null;
+  useEffect(() => {
+    if (!hasAnalysis) setShowAnalysis(false);
+  }, [hasAnalysis]);
 
   /**
    * Whether a rearrangement is even a question yet, and if not, why not.
@@ -352,13 +375,19 @@ export default function App() {
     setAppliedRebalance(null);
   }, [appliedRebalance, reorder]);
 
-  /** Focus goes back where it came from when the panel closes. */
+  /** Focus goes back where it came from when a panel closes. */
   const rebalanceButton = useRef<HTMLButtonElement>(null);
+  const analysisButton = useRef<HTMLButtonElement>(null);
 
   const closeRebalance = useCallback(() => {
     setShowRebalance(false);
     setAppliedRebalance(null);
     rebalanceButton.current?.focus();
+  }, []);
+
+  const closeAnalysis = useCallback(() => {
+    setShowAnalysis(false);
+    analysisButton.current?.focus();
   }, []);
 
   /**
@@ -531,13 +560,31 @@ export default function App() {
     [assignHero, activeSlot, visibleHeroes],
   );
 
-  const freshness = dataset.generatedAt
-    ? new Date(dataset.generatedAt).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : null;
+  const freshness = dataset.generatedAt ? shortDate(dataset.generatedAt) : null;
+
+  /** Where every figure comes from, for the one status chip that stands for all of them. */
+  const dataSources = [
+    `${Object.keys(dataset.matchups).length} heroes · matchups from Dotabuff` +
+      (dataset.generatedAt
+        ? `, ${new Date(dataset.generatedAt).toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })}`
+        : ""),
+    dataset.hasPositions ? "Positions and win rates by rank from STRATZ" : null,
+    dataset.laneOutcomes
+      ? `Lane outcomes from STRATZ, ${dataset.laneOutcomes.weeks.length} weeks`
+      : null,
+    dataset.hasSynergies
+      ? `Synergies from ${dataset.synergyMatches.toLocaleString()} OpenDota matches`
+      : null,
+    dataset.hasTimings
+      ? `Game length from ${dataset.timingMatches.toLocaleString()} OpenDota matches`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   /**
    * How old the data is, in days.
@@ -587,10 +634,7 @@ export default function App() {
       }`}
     >
       <header className="topbar">
-        <div className="brand">
-          <h1>Draft Picker</h1>
-          <span className="muted">Dotabuff matchup data</span>
-        </div>
+        <h1 className="brand">Draft Picker</h1>
 
         <RankFilter
           value={dataset.rankBand ?? settings.rankBand}
@@ -602,10 +646,8 @@ export default function App() {
           {loading ? (
             <span className="tag">loading…</span>
           ) : dataset.hasData ? (
-            <span className="tag tag-good" title={dataset.generatedAt ?? undefined}>
-              {`${Object.keys(dataset.matchups).length} heroes${
-                freshness ? ` · data from ${freshness}` : ""
-              }`}
+            <span className="tag tag-good" title={dataSources}>
+              {freshness ? `data from ${freshness}` : "data loaded"}
             </span>
           ) : (
             <span className="tag tag-bad">no matchup data</span>
@@ -626,94 +668,103 @@ export default function App() {
               {`${staleness[0]!.days}d old data`}
             </span>
           )}
-          {dataset.laneOutcomes && (
-            <span
-              className="tag"
-              title={`Lane outcomes from STRATZ, ${dataset.laneOutcomes.weeks.length} weeks — the laning row in the draft read-out`}
-            >
-              lanes on
-            </span>
-          )}
-          {dataset.hasSynergies ? (
-            <span
-              className="tag"
-              title={`Team synergies from ${dataset.synergyMatches.toLocaleString()} OpenDota matches`}
-            >
-              synergies on
-            </span>
-          ) : (
-            <span className="tag" title="Run `npm run synergy` to add team synergy data">
+          {dataset.hasData && !dataset.hasSynergies && (
+            <span className="tag tag-warn" title="Run `npm run synergy` to add team synergy data">
               no synergy data
             </span>
-          )}
-          {analysis && (
-            <button
-              type="button"
-              className={`tag tag-button ${
-                analysis.verdict.side === "even"
-                  ? ""
-                  : analysis.verdict.side === "mine"
-                    ? "tag-good"
-                    : "tag-bad"
-              }`}
-              onClick={() => setShowAnalysis((v) => !v)}
-              aria-expanded={showAnalysis}
-              title={
-                `${analysis.verdict.label} — matchups ${formatSigned(analysis.counter, 1)}, ` +
-                `cohesion ${formatSigned(analysis.synergyEdge, 1)}. ` +
-                `Click for the lane-by-lane breakdown.`
-              }
-            >
-              {`draft ${formatSigned(analysis.advantage, 1)} · ${analysis.verdict.label.toLowerCase()}`}
-              <span className="tag-caret" aria-hidden>
-                {showAnalysis ? "▲" : "▼"}
-              </span>
-            </button>
           )}
         </div>
 
         <div className="topbar-actions">
-          {/*
-            The one button in this bar that is about the heroes already spent
-            rather than the next one. It carries its own headline because the
-            case it exists for is the case you would not think to click it in:
-            the enemy answers your first pick, and the fix is a seat away.
-          */}
-          {/*
-            Every word and figure on this button comes from `rebalanceCopy`, the
-            same module the panel reads. They used to phrase it separately and
-            disagreed about both the number and what it was a number of.
-          */}
-          <button
-            type="button"
-            ref={rebalanceButton}
-            className={`btn ${rebalanceReport?.best ? "btn-alert" : ""}`}
-            onClick={() => {
-              if (!rebalanceReady.ready) return;
-              return showRebalance ? closeRebalance() : setShowRebalance(true);
-            }}
-            /*
-              `aria-disabled` rather than `disabled`, because the whole value of
-              the unavailable state here is the sentence explaining it — and a
-              genuinely disabled button fires no mouse events, so its `title`
-              never appears and the reader is left with a greyed-out control and
-              no idea what it wants from them.
-            */
-            aria-disabled={!rebalanceReady.ready}
-            aria-expanded={showRebalance}
-            title={buttonTitle(rebalanceReport, rebalanceReady)}
-          >
-            {buttonLabel(rebalanceReport, showRebalance)}
-          </button>
-          <button type="button" className="btn" onClick={swapTeams} disabled={!total}>
-            Swap sides
-          </button>
-          <button type="button" className="btn" onClick={() => setShowSettings((v) => !v)}>
-            {showSettings ? "Hide tuning" : "Tuning"}
-          </button>
-          <button type="button" className="btn btn-danger" onClick={reset} disabled={!total}>
-            Reset
-          </button>
+          <div className="topbar-group" role="group" aria-label="Panels">
+            {/*
+              Always rendered, even before there is a draft to read: a control
+              that appears only once both teams have a hero is one nobody finds.
+              `aria-disabled` rather than `disabled` for the reason given on
+              Rebalance below.
+            */}
+            <button
+              type="button"
+              ref={analysisButton}
+              className="btn btn-primary"
+              onClick={() => {
+                if (!analysis) return;
+                return showAnalysis ? closeAnalysis() : setShowAnalysis(true);
+              }}
+              aria-disabled={!analysis}
+              aria-expanded={showAnalysis && !!analysis}
+              title={
+                analysis
+                  ? `${analysis.verdict.label} — matchups ${formatSigned(analysis.counter, 1)}, ` +
+                    `cohesion ${formatSigned(analysis.synergyEdge, 1)}. ` +
+                    "Opens the game plan, the matchup map and the full breakdown."
+                  : "Put a hero on each team to analyse the draft"
+              }
+            >
+              Draft analysis
+              {analysis && (
+                <span
+                  className={`num-chip ${
+                    analysis.verdict.side === "even"
+                      ? ""
+                      : analysis.verdict.side === "mine"
+                        ? "good"
+                        : "bad"
+                  }`}
+                >
+                  {formatSigned(analysis.advantage, 1)}
+                </span>
+              )}
+            </button>
+            {/*
+              The one button in this bar that is about the heroes already spent
+              rather than the next one. It carries its own headline because the
+              case it exists for is the case you would not think to click it in:
+              the enemy answers your first pick, and the fix is a seat away.
+            */}
+            {/*
+              Every word and figure on this button comes from `rebalanceCopy`, the
+              same module the panel reads. They used to phrase it separately and
+              disagreed about both the number and what it was a number of.
+            */}
+            <button
+              type="button"
+              ref={rebalanceButton}
+              className={`btn ${rebalanceReport?.best ? "btn-alert" : ""}`}
+              onClick={() => {
+                if (!rebalanceReady.ready) return;
+                return showRebalance ? closeRebalance() : setShowRebalance(true);
+              }}
+              /*
+                `aria-disabled` rather than `disabled`, because the whole value of
+                the unavailable state here is the sentence explaining it — and a
+                genuinely disabled button fires no mouse events, so its `title`
+                never appears and the reader is left with a greyed-out control and
+                no idea what it wants from them.
+              */
+              aria-disabled={!rebalanceReady.ready}
+              aria-expanded={showRebalance && !!rebalanceReport}
+              title={buttonTitle(rebalanceReport, rebalanceReady)}
+            >
+              {buttonLabel(rebalanceReport)}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setShowSettings((v) => !v)}
+              aria-expanded={showSettings}
+            >
+              Tuning
+            </button>
+          </div>
+          <div className="topbar-group" role="group" aria-label="Draft">
+            <button type="button" className="btn" onClick={swapTeams} disabled={!total}>
+              Swap sides
+            </button>
+            <button type="button" className="btn btn-danger" onClick={reset} disabled={!total}>
+              Reset
+            </button>
+          </div>
         </div>
       </header>
 
@@ -884,7 +935,7 @@ export default function App() {
           analysis={analysis}
           data={dataset}
           hasTimings={dataset.hasTimings}
-          onClose={() => setShowAnalysis(false)}
+          onClose={closeAnalysis}
         />
       )}
 
@@ -951,12 +1002,13 @@ export default function App() {
               autoComplete="off"
               spellCheck={false}
             />
-            <div className="modes" role="group" aria-label="What a click does">
+            <div className="seg" role="group" aria-label="What a click does">
               {(["mine", "enemy"] as Slot[]).map((slot) => (
                 <button
                   key={slot}
                   type="button"
-                  className={`mode mode-${slot} ${activeSlot === slot ? "mode-active" : ""}`}
+                  className={`seg-btn tone-${slot}`}
+                  aria-pressed={activeSlot === slot}
                   onClick={() => setActiveSlot(slot)}
                 >
                   <span className={`dot dot-${slot}`} aria-hidden />
@@ -975,9 +1027,8 @@ export default function App() {
                 <button
                   key={side}
                   type="button"
-                  className={`mode mode-banned mode-ban-${side} ${
-                    activeSlot === "banned" && banSide === side ? "mode-active" : ""
-                  }`}
+                  className={`seg-btn tone-ban-${side}`}
+                  aria-pressed={activeSlot === "banned" && banSide === side}
                   onClick={() => activateBanSide("banned", side)}
                   title={
                     side === "enemy"
@@ -994,12 +1045,12 @@ export default function App() {
 
           <div className="sortbar">
             <span className="sortbar-label muted">Sort</span>
-            <div className="sorts" role="group" aria-label="Sort the hero grid">
+            <div className="seg" role="group" aria-label="Sort the hero grid">
               {(["attr", "pick", "ban"] as SortMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
-                  className={`sort sort-${mode} ${sort === mode ? "sort-active" : ""}`}
+                  className={`seg-btn ${SORT_TONE[mode]}`}
                   onClick={() => changeSort(mode)}
                   disabled={mode !== "attr" && !dataset.hasData}
                   title={SORT_HINT[mode]}

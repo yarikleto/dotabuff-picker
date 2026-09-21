@@ -90,6 +90,7 @@ matchup pages, so counters carry no patch of their own.
 | Hover the **i** on a tile | Opens the full breakdown for that hero |
 | Click a face under **Countered by** | Bans that counter |
 | Click a face under **Best with** | Adds that hero to your team |
+| **Draft analysis** in the top bar | The game plan, matchup map and full breakdown of the draft on the board |
 | **Rebalance** in the top bar | The same five heroes in better seats, when there are any |
 
 Your picks are green, the enemy's are red, bans are greyed out and crossed
@@ -198,7 +199,7 @@ src/lib/positions.ts         STRATZ counts -> positions for the chosen rank band
 src/lib/lanes.ts             lane outcomes: expectation, pairing effects, counters by seat
 src/lib/search.ts            hero search, abbreviations, internal names
 src/components/HeroCard.tsx  the hover breakdown behind each tile's i icon
-src/components/DraftAnalysis.tsx  the panel behind the top-bar badge
+src/components/DraftAnalysis.tsx  the panel behind the Draft analysis button
 src/components/Rebalance.tsx the reshuffle shortlist behind the top-bar button
 src/state/draft.ts           draft reducer + localStorage
 src/data/heroes.ts           the hero roster every collector finds heroes through

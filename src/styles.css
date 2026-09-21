@@ -37,6 +37,25 @@
 
   --good: #4ec46f;
   --bad: #e2685e;
+  --warn: #e2a33d;
+  --warn-soft: rgba(226, 163, 61, 0.12);
+  /* On a tinted fill the saturated colours above are too dark to read as text. */
+  --good-text: #9fe0b1;
+  --bad-text: #f0aaa3;
+  --warn-text: #e8c98a;
+
+  /*
+   * Focus, the selected view and the primary action. Blue because green, red,
+   * grey and amber already mean a side, a ban or a warning here.
+   */
+  --accent: #5eb1ff;
+  --accent-soft: rgba(94, 177, 255, 0.16);
+  --accent-text: #cfe6ff;
+
+  --track: rgba(255, 255, 255, 0.05);
+  --fill-hover: rgba(255, 255, 255, 0.13);
+  --fill-selected: rgba(255, 255, 255, 0.16);
+  --line-strong: rgba(255, 255, 255, 0.24);
 
   /* Position accents: cores warm, supports cool. */
   --pos-1: #e2a33d;
@@ -50,6 +69,9 @@
   --int: #4aa8e0;
   --uni: #c48ae0;
 
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
   --radius: 12px;
   --tile-w: 84px;
 }
@@ -93,7 +115,7 @@ button {
 kbd {
   background: var(--bg-tile);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 0 4px;
   font-size: 11px;
   font-family: inherit;
@@ -101,7 +123,7 @@ kbd {
 
 code {
   background: var(--bg-tile);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 1px 5px;
   font-size: 12px;
 }
@@ -162,28 +184,38 @@ code {
   min-height: 70vh;
 }
 
+/*
+ * Opaque, not glass: the page scrolls under this bar while the read-out is
+ * open. It paints the page's backdrop at the viewport's size, and since it
+ * never leaves the top of the window the blooms line up with the body's.
+ * `background-attachment: fixed` would too, but it moves every page scroll
+ * onto the main thread. No lift: a shadow under something with no edges
+ * reads as a smudge.
+ */
 .topbar {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 10px 16px;
-  background: var(--bg-raised);
-  border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(226, 238, 255, 0.05), rgba(226, 238, 255, 0.05)),
+    var(--backdrop);
+  background-size: 100% 100vh;
+  background-repeat: no-repeat;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--hairline);
 }
 
 .brand {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.brand h1 {
-  font-size: 16px;
   margin: 0;
+  font-size: 16px;
   letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 
+/* Status only. Anything here that could be clicked would pass for a label. */
 .topbar-status {
   display: flex;
   gap: 6px;
@@ -193,7 +225,21 @@ code {
 .topbar-actions {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* Panels it opens on the left, changes to the draft itself on the right. */
+.topbar-group {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.topbar-group + .topbar-group {
+  padding-left: 12px;
+  border-left: 1px solid var(--line-soft);
 }
 
 .layout {
@@ -244,17 +290,41 @@ code {
 
 /* ------------------------------------------------------------------ chrome */
 
+/* The control vocabulary is listed in AGENTS.md; keep new controls inside it. */
+
+:where(button, a[href], select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 12px;
   background: var(--bg-tile);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 5px 11px;
-  transition: background 0.12s, border-color 0.12s;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--hairline);
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
 }
 
 .btn:hover:not(:disabled):not([aria-disabled="true"]) {
-  background: #26333f;
-  border-color: #3a4756;
+  background: var(--fill-hover);
+  border-color: var(--line-strong);
+}
+
+/* An open panel is drawn on its button; the label stays the same width. */
+.btn[aria-expanded="true"],
+.btn[aria-pressed="true"] {
+  background: var(--fill-selected);
+  border-color: var(--line-strong);
+  box-shadow: var(--hairline), inset 0 -2px 0 var(--btn-tone, var(--accent));
 }
 
 /*
@@ -268,14 +338,138 @@ code {
   cursor: default;
 }
 
-.btn-danger:hover:not(:disabled) {
+.btn-primary {
+  --btn-tone: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.btn-primary:hover:not(:disabled):not([aria-disabled="true"]),
+.btn-primary[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  border-color: var(--accent);
+}
+
+/*
+ * The one button in the top bar that is a warning rather than a control. It only
+ * takes this state when the search actually found something, so it has to read
+ * as "look at me" without becoming a second draft badge.
+ */
+.btn-alert {
+  --btn-tone: var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.btn-alert:hover:not(:disabled):not([aria-disabled="true"]),
+.btn-alert[aria-expanded="true"] {
+  background: rgba(226, 163, 61, 0.2);
+  border-color: var(--warn);
+}
+
+/* Tinted at rest: Reset throws the draft away and has no undo. */
+.btn-danger {
+  color: var(--bad-text);
+}
+
+.btn-danger:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: #ffc9c4;
+  background: var(--enemy-soft);
   border-color: var(--enemy);
-  color: #ffb3ad;
+}
+
+.btn-small {
+  min-height: 24px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+.num-chip {
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.num-chip.good {
+  color: var(--good);
+}
+.num-chip.bad {
+  color: var(--bad);
+}
+
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--track);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--hairline);
+}
+
+.seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-xs);
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+
+.seg-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.seg-btn[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--fill-selected);
+  box-shadow: var(--hairline), inset 0 -2px 0 var(--seg-tone, transparent);
+}
+
+.seg-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.seg-sm .seg-btn {
+  padding: 4px 9px;
+}
+
+.tone-accent {
+  --seg-tone: var(--accent);
+}
+.tone-mine {
+  --seg-tone: var(--mine);
+}
+.tone-enemy {
+  --seg-tone: var(--enemy);
+}
+.tone-banned {
+  --seg-tone: var(--banned);
+}
+.tone-ban-mine {
+  --seg-tone: var(--ban-mine);
+}
+.tone-ban-enemy {
+  --seg-tone: var(--ban-enemy);
 }
 
 .link-btn {
   background: none;
   border: 0;
+  border-radius: var(--radius-xs);
   color: var(--text-dim);
   font-size: 12px;
   padding: 2px 4px;
@@ -300,18 +494,18 @@ code {
 }
 
 .tag-good {
-  color: #9fe0b1;
+  color: var(--good-text);
   border-color: rgba(78, 196, 111, 0.4);
 }
 
 .tag-bad {
-  color: #f0aaa3;
+  color: var(--bad-text);
   border-color: rgba(226, 104, 94, 0.4);
 }
 
 /* Amber rather than red: stale data still works, it just needs refreshing. */
 .tag-warn {
-  color: #e8c98a;
+  color: var(--warn-text);
   border-color: rgba(226, 163, 61, 0.45);
 }
 
@@ -349,8 +543,8 @@ code {
 
 .settings {
   display: flex;
-  gap: 22px;
-  align-items: flex-end;
+  gap: 18px 22px;
+  align-items: flex-start;
   flex-wrap: wrap;
   padding: 12px 16px;
   background: var(--bg-raised);
@@ -371,16 +565,11 @@ code {
 }
 
 .settings input[type="range"] {
-  accent-color: var(--mine);
+  accent-color: var(--accent);
 }
 
-.settings select {
-  padding: 4px 6px;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  font: inherit;
+.settings > .btn {
+  align-self: center;
 }
 
 /* ------------------------------------------------------------- team panels */
@@ -394,7 +583,7 @@ code {
 }
 
 .team-active {
-  border-color: #46586c;
+  border-color: var(--line-strong);
 }
 
 .team-header {
@@ -434,7 +623,7 @@ code {
   background: var(--bg-tile);
   border: 1px solid var(--line);
   border-left-width: 3px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 3px 8px 3px 5px;
   text-align: left;
 }
@@ -517,7 +706,7 @@ code {
 .ban-side {
   min-width: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 5px;
   transition: border-color 0.12s, background 0.12s;
 }
@@ -577,7 +766,7 @@ code {
   place-items: center;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--bg-tile);
   color: var(--text-dim);
   font-size: 11px;
@@ -593,7 +782,7 @@ code {
 
 .ban-flip:hover {
   color: var(--text);
-  border-color: #46586c;
+  border-color: var(--line-strong);
 }
 
 /*
@@ -609,7 +798,7 @@ code {
 .ban-loose-head {
   margin: 0 0 6px;
   font-size: 11px;
-  color: #e8c98a;
+  color: var(--warn-text);
 }
 
 .ban-claim {
@@ -621,7 +810,7 @@ code {
 .ban-claim-btn {
   padding: 1px 6px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--bg-tile);
   color: var(--text-dim);
   font-size: 10px;
@@ -629,12 +818,12 @@ code {
 }
 
 .ban-claim-mine:hover {
-  color: #b7e0c4;
+  color: var(--good-text);
   border-color: var(--ban-mine);
 }
 
 .ban-claim-enemy:hover {
-  color: #f0bdb7;
+  color: var(--bad-text);
   border-color: var(--ban-enemy);
 }
 
@@ -668,7 +857,7 @@ code {
   flex: none;
   width: 30px;
   height: 26px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--line);
   background: var(--bg-tile);
   color: var(--text-dim);
@@ -705,7 +894,7 @@ code {
 }
 
 .position-slot:hover {
-  border-color: #46586c;
+  border-color: var(--line-strong);
   color: var(--text);
 }
 
@@ -730,7 +919,7 @@ code {
   transform: translateY(-50%);
   z-index: 20;
   padding: 3px 7px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--line);
   /* Tooltips sit directly over portraits and hero names, so the shared glass
      surface is too transparent here: content underneath competes with the
@@ -785,15 +974,11 @@ code {
   margin-left: -4px;
 }
 
-.rank-filter {
-  margin: 0;
-}
-
 .pos-chip {
   min-width: 26px;
   height: 22px;
   padding: 0 7px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--line);
   background: var(--bg-tile);
   color: var(--text-dim);
@@ -802,11 +987,11 @@ code {
 }
 
 .pos-chip:hover:not(:disabled) {
-  border-color: #46586c;
+  border-color: var(--line-strong);
 }
 
 .pos-chip:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: default;
 }
 
@@ -853,7 +1038,7 @@ code {
 
 .tag-pos {
   color: var(--text);
-  border-color: #3c4a59;
+  border-color: var(--line-strong);
 }
 
 .tag-lane {
@@ -885,7 +1070,7 @@ code {
   min-width: 200px;
   background: var(--bg-raised);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   color: var(--text);
   font: inherit;
@@ -893,53 +1078,8 @@ code {
 
 .search:focus {
   outline: none;
-  border-color: #46586c;
-}
-
-.modes {
-  display: flex;
-  gap: 4px;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 3px;
-}
-
-.mode {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: 0;
-  border-radius: 4px;
-  padding: 5px 10px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.mode:hover {
-  color: var(--text);
-}
-
-.mode-active {
-  color: var(--text);
-  background: var(--bg-tile);
-}
-
-.mode-mine.mode-active {
-  box-shadow: inset 0 -2px 0 var(--mine);
-}
-.mode-enemy.mode-active {
-  box-shadow: inset 0 -2px 0 var(--enemy);
-}
-.mode-banned.mode-active {
-  box-shadow: inset 0 -2px 0 var(--banned);
-}
-.mode-ban-mine.mode-active {
-  box-shadow: inset 0 -2px 0 var(--ban-mine);
-}
-.mode-ban-enemy.mode-active {
-  box-shadow: inset 0 -2px 0 var(--ban-enemy);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: var(--hairline), 0 0 0 3px var(--accent-soft);
 }
 
 .hints {
@@ -958,45 +1098,6 @@ code {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-}
-
-.sorts {
-  display: flex;
-  gap: 4px;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 3px;
-}
-
-.sort {
-  background: none;
-  border: 0;
-  border-radius: 4px;
-  padding: 5px 10px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.sort:hover:not(:disabled) {
-  color: var(--text);
-}
-
-.sort:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.sort-active {
-  color: var(--text);
-  background: var(--bg-tile);
-}
-
-.sort-pick.sort-active {
-  box-shadow: inset 0 -2px 0 var(--mine);
-}
-.sort-ban.sort-active {
-  box-shadow: inset 0 -2px 0 var(--banned);
 }
 
 .grid-section + .grid-section {
@@ -1053,7 +1154,7 @@ code {
   padding: 0 0 3px;
   background: var(--bg-tile);
   border: 1px solid var(--line-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   transition: transform 0.08s, border-color 0.12s, opacity 0.12s;
 }
@@ -1062,7 +1163,7 @@ code {
  * info button sitting over it. */
 .tile-wrap {
   /* Matches the tile, so the hover glow follows its corners. */
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   transition: transform 0.08s, box-shadow 0.12s;
 }
 
@@ -1071,7 +1172,7 @@ code {
 }
 
 .tile-wrap:hover .tile {
-  border-color: #46586c;
+  border-color: var(--line-strong);
 }
 
 /*
@@ -1386,6 +1487,12 @@ code {
   vertical-align: -2px;
 }
 
+/*
+ * The one surface that floats over the board rather than sitting beside it,
+ * and the only place the blur is doing real work — behind it is a wall of hero
+ * art. Which is also why it is the most opaque material here: a popover is for
+ * reading, and 127 portraits smeared underneath is a texture, not a backdrop.
+ */
 .herocard {
   position: fixed;
   z-index: 60;
@@ -1393,10 +1500,13 @@ code {
   max-height: calc(100vh - 20px);
   overflow-y: auto;
   padding: 10px 12px 11px;
-  background: var(--bg-raised);
-  border: 1px solid #3a4756;
+  background: rgba(24, 33, 45, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius);
-  box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.8);
+  backdrop-filter: var(--glass-deep);
+  box-shadow:
+    var(--hairline),
+    0 24px 60px -20px rgba(0, 0, 0, 0.85);
   font-size: 12px;
 }
 
@@ -1410,7 +1520,7 @@ code {
   width: 64px;
   height: 36px;
   aspect-ratio: auto;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   flex: none;
 }
 
@@ -1443,7 +1553,7 @@ code {
   justify-content: center;
   width: 34px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--line);
   background: var(--bg-tile);
   color: var(--text-dim);
@@ -1463,8 +1573,8 @@ code {
 .hc-link:hover,
 .hc-link:focus-visible {
   color: var(--text);
-  border-color: #46586d;
-  background: #232f3b;
+  border-color: var(--line-strong);
+  background: var(--fill-hover);
 }
 
 .hc-title strong {
@@ -1478,7 +1588,7 @@ code {
 .hc-slot {
   margin: 7px 0 0;
   padding: 2px 7px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   border-left: 3px solid var(--banned);
   background: var(--bg-tile);
   font-size: 11px;
@@ -1697,7 +1807,7 @@ code {
   padding: 0 0 1px;
   background: var(--bg-tile);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   transition: border-color 0.12s ease, transform 0.12s ease;
 }
@@ -1862,7 +1972,7 @@ code {
   font-weight: 700;
   letter-spacing: 0.3px;
   padding: 1px 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   color: #cdd7e2;
   background: rgba(10, 14, 18, 0.8);
   backdrop-filter: blur(2px);
@@ -1875,7 +1985,7 @@ code {
   font-size: 10px;
   font-weight: 700;
   padding: 1px 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: rgba(10, 14, 18, 0.85);
   backdrop-filter: blur(2px);
 }
@@ -1897,7 +2007,7 @@ code {
   font-weight: 700;
   text-align: center;
   padding: 1px 3px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   color: #0f1419;
   background: #d8c48a;
 }
@@ -1997,28 +2107,14 @@ code {
 
 /* The bans the claim is built from, named so the claim can be checked. */
 .tag-evidence {
-  color: #e8c98a;
+  color: var(--warn-text);
   border-color: rgba(201, 162, 39, 0.4);
   background: var(--intent-soft);
 }
 
-.intent-act {
-  padding: 2px 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--bg-tile);
-  color: var(--text-dim);
-  font-size: 11px;
-}
-
-.intent-act:hover {
-  color: var(--text);
-  border-color: #46586c;
-}
-
 /* The other way out: the answer to their plan that is still on the board. */
-.intent-act-answer:hover {
-  color: #b7e0c4;
+.btn.intent-act-answer:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--good-text);
   border-color: var(--mine);
 }
 
@@ -2051,7 +2147,7 @@ code {
   width: 100%;
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 5px 6px;
   text-align: left;
 }
@@ -2155,63 +2251,87 @@ code {
  *
  * Shown whole, never scrolled inside itself — `.app-page` below hands the
  * scrolling to the page instead. `flex: none` keeps a tall board from crushing
- * it in the other direction.
+ * it in the other direction. The draft analysis and Rebalance share this shell
+ * and differ only in their accent.
  */
-.analysis {
+.sheet {
   flex: none;
   margin: 0 12px 4px;
-  padding: 12px 14px 10px;
+  padding: 14px 16px 12px;
   background: var(--bg-raised);
   border: 1px solid var(--line);
-  border-top: 2px solid var(--pos-4);
+  border-top: 2px solid var(--sheet-tone, var(--accent));
   border-radius: var(--radius);
+  outline: none;
 }
 
-.analysis-head {
+/*
+ * A sheet takes focus when it opens, because opening it pushes several hundred
+ * pixels of board down the page. Focus that arrives programmatically gets a ring
+ * only when the reader is navigating by keyboard.
+ */
+.sheet:focus-visible {
+  box-shadow: 0 0 0 2px var(--sheet-tone, var(--accent));
+}
+
+.sheet-rebalance {
+  --sheet-tone: var(--warn);
+}
+
+.sheet-head {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
 }
 
-.analysis-headline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+/*
+ * The sentence wraps; the controls do not get pushed off the end by it. Without
+ * a basis the flex line breaks as soon as a long clause appears and Close jumps
+ * to a row of its own.
+ */
+.sheet-title {
+  flex: 1 1 420px;
+  min-width: 0;
 }
 
-.analysis-figure {
-  font-size: 30px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.analysis-figure.good {
-  color: var(--good);
-}
-.analysis-figure.bad {
-  color: var(--bad);
-}
-.analysis-figure.even {
-  color: var(--text-dim);
-}
-
-.analysis-verdict {
+.sheet-title h2 {
+  margin: 0 0 2px;
   font-size: 15px;
 }
 
-.analysis-sub {
-  margin: 2px 0 0;
+.sheet-title p {
+  margin: 0;
   font-size: 12px;
+  max-width: 88ch;
 }
 
-.analysis-meta {
-  margin-left: auto;
+.sheet-title .bad {
+  color: var(--bad);
+}
+
+.sheet-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+/* A heading with its qualification spelled out beside it, not a badge to decode. */
+.sheet-section {
+  margin: 14px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.sheet-section .muted {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 /* The part that gets said out loud. Sized to be read across a room. */
@@ -2219,19 +2339,19 @@ code {
   margin: 10px 0 0;
   padding: 8px 10px 8px 26px;
   background: var(--bg-tile);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   line-height: 1.6;
 }
 
 .analysis-points li::marker {
-  color: var(--pos-4);
+  color: var(--accent);
 }
 
 .analysis-grid {
-  margin-top: 10px;
+  margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(275px, 1fr));
   gap: 10px;
   align-items: start;
 }
@@ -2239,8 +2359,8 @@ code {
 .analysis-card {
   background: var(--bg-tile);
   border: 1px solid var(--line-soft);
-  border-radius: 6px;
-  padding: 9px 11px 11px;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
 }
 
 .analysis-card h3 {
@@ -2252,8 +2372,9 @@ code {
 }
 
 .analysis-card-sub {
-  margin: 3px 0 8px;
-  font-size: 11.5px;
+  margin: 6px 0 12px;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .analysis-sub-head {
@@ -2284,7 +2405,7 @@ code {
 
 .stage-line {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -2294,6 +2415,7 @@ code {
 }
 .stage-line-them {
   stroke: var(--enemy);
+  stroke-dasharray: 5 3;
 }
 
 .stage-dot-us {
@@ -2338,11 +2460,11 @@ code {
 }
 
 .analysis-foot {
-  margin: 10px 0 0;
-  padding-top: 8px;
+  margin: 12px 0 0;
+  padding-top: 10px;
   border-top: 1px solid var(--line-soft);
   font-size: 11px;
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
 /* ------------------------------------------------ lane, stage and hero rows */
@@ -2417,10 +2539,10 @@ code {
 }
 
 .lane-note.good {
-  color: #9fe0b1;
+  color: var(--good-text);
 }
 .lane-note.bad {
-  color: #f0aaa3;
+  color: var(--bad-text);
 }
 
 /*
@@ -2545,23 +2667,6 @@ code {
   color: var(--text-dim);
 }
 
-/* The top-bar badge is a control now, so it has to look like one. */
-.tag-button {
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-}
-
-.tag-button:hover {
-  border-color: var(--text-dim);
-  color: var(--text);
-}
-
-.tag-caret {
-  font-size: 8px;
-  opacity: 0.8;
-}
-
 /* Lane duo chemistry sits beside the two names it belongs to. */
 .lane-duos {
   display: flex;
@@ -2585,33 +2690,6 @@ code {
 /* --------------------------------------------------------------- rebalance */
 
 /*
- * The reshuffle panel sits where the read-out does and is deliberately built
- * from the same parts — one raised block across the top of the board, opened
- * from the chrome, closed by a button of its own. It answers a different
- * question, so it gets its own accent colour, and that is the only difference a
- * reader has to learn.
- */
-.rebalance {
-  flex: none;
-  margin: 0 12px 4px;
-  padding: 12px 14px 10px;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-top: 2px solid var(--pos-1);
-  border-radius: var(--radius);
-  outline: none;
-}
-
-/*
- * The panel takes focus when it opens, because opening it pushes several hundred
- * pixels of board down the page. Focus that arrives programmatically gets a ring
- * only when the reader is navigating by keyboard.
- */
-.rebalance:focus-visible {
-  box-shadow: 0 0 0 2px var(--pos-1);
-}
-
-/*
  * Everything below the header is capped at a reading width.
  *
  * The header keeps the full span, because Close belongs at the right edge of the
@@ -2619,67 +2697,21 @@ code {
  * stretched across 2000px put its Apply button most of a metre away from the
  * figure that justified pressing it, with nothing in between.
  */
-.rebalance-inner > *:not(.rebalance-head) {
+.rebalance-inner > *:not(.sheet-head) {
   max-width: 1180px;
-}
-
-.rebalance-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-/*
- * The sentence wraps; the controls do not get pushed off the end by it. Without
- * a basis the flex line breaks as soon as the losing-lane clause appears and
- * Close jumps to a row of its own.
- */
-.rebalance-head-text {
-  flex: 1 1 420px;
-  min-width: 0;
-}
-
-.rebalance-head h2 {
-  margin: 0 0 2px;
-  font-size: 15px;
-}
-
-.rebalance-head p {
-  margin: 0;
-  font-size: 12px;
-  max-width: 88ch;
-}
-
-.rebalance-head .bad {
-  color: var(--bad);
-}
-
-.rebalance-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .rebalance-plan {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
 }
 
 /* A control that changes the board, not the list, so it says which it is. */
 .rebalance-plan-label {
-  font-size: 10px;
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-right: 3px;
-}
-
-/* The lane toggle is a word, not a digit, so it needs more room than a pos chip. */
-.rebalance-plan .pos-chip {
-  min-width: 0;
-  padding: 0 9px;
 }
 
 /*
@@ -2694,9 +2726,9 @@ code {
   gap: 12px;
   margin-top: 10px;
   padding: 6px 8px 6px 11px;
-  border: 1px solid var(--pos-1);
-  border-radius: 6px;
-  background: rgba(226, 163, 61, 0.1);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
   font-size: 12.5px;
 }
 
@@ -2709,11 +2741,6 @@ code {
 .rebalance-offrole {
   border-color: var(--bad);
   background: rgba(224, 108, 117, 0.12);
-}
-
-.btn-small {
-  padding: 2px 10px;
-  font-size: 11px;
 }
 
 .rebalance-options {
@@ -2739,7 +2766,7 @@ code {
   align-items: start;
   column-gap: 12px;
   border: 1px solid var(--line-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 9px 11px;
   background: var(--bg-tile);
 }
@@ -2783,7 +2810,7 @@ code {
  * two must not be mistaken for each other at a glance.
  */
 .rebalance-lead-value.warn {
-  color: var(--pos-1);
+  color: var(--warn);
 }
 
 .rebalance-option-body {
@@ -2851,8 +2878,8 @@ code {
 /* A lane swap moves nobody, so the chip has no portrait to sit behind. */
 .rebalance-move-lanes {
   padding-left: 9px;
-  border-color: var(--pos-1);
-  color: var(--pos-1);
+  border-color: var(--warn);
+  color: var(--warn);
 }
 
 .rebalance-move .position-ghost {
@@ -2876,27 +2903,6 @@ code {
 }
 .rebalance-why .bad {
   color: var(--bad);
-}
-
-/*
- * The two secondary lists — "worth it for one lane" and "beyond your role
- * threshold" — are subordinate to the main one and have to read that way
- * without disappearing. A heading with the qualification spelled out beside it,
- * rather than a badge the reader has to decode.
- */
-.rebalance-aside-head {
-  margin: 14px 0 0;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-dim);
-}
-
-.rebalance-aside-head .muted {
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
 }
 
 /* Options the reader's own role threshold rejected: dashed, like the ghost slots. */
@@ -2925,22 +2931,6 @@ code {
   font-weight: 600;
 }
 
-/*
- * The one button in the top bar that is a warning rather than a control. It only
- * takes this state when the search actually found something, so it has to read
- * as "look at me" without becoming a second draft badge.
- */
-.btn-alert {
-  border-color: var(--pos-1);
-  color: var(--pos-1);
-  background: rgba(226, 163, 61, 0.12);
-}
-
-.btn-alert:hover:not(:disabled) {
-  background: rgba(226, 163, 61, 0.2);
-  border-color: var(--pos-1);
-}
-
 /* ------------------------------------------------------------------ glass */
 /*
  * The macOS material treatment.
@@ -2964,88 +2954,18 @@ code {
   --lift: 0 10px 28px -18px rgba(0, 0, 0, 0.75);
 }
 
+/*
+ * Unprefixed only: the build adds the -webkit- copy Safari needs, and a
+ * hand-written one next to this minifies to the prefixed declaration alone,
+ * which Chromium ignores.
+ */
 .settings,
 .team,
 .panel,
-.analysis,
-.rebalance,
-.search,
-.modes,
-.sorts {
-  backdrop-filter: var(--glass);
-  -webkit-backdrop-filter: var(--glass);
-  box-shadow: var(--hairline), var(--lift);
-}
-
-/*
- * Opaque, not glass: the page scrolls under this bar while the read-out is
- * open. It paints the page's backdrop at the viewport's size, and since it
- * never leaves the top of the window the blooms line up with the body's.
- * `background-attachment: fixed` would too, but it moves every page scroll
- * onto the main thread. No lift: a shadow under something with no edges
- * reads as a smudge.
- */
-.topbar {
-  background-color: var(--bg);
-  background-image:
-    linear-gradient(rgba(226, 238, 255, 0.05), rgba(226, 238, 255, 0.05)),
-    var(--backdrop);
-  background-size: 100% 100vh;
-  background-repeat: no-repeat;
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-  box-shadow: var(--hairline);
-}
-
-/*
- * The one surface that floats over the board rather than sitting beside it,
- * and the only place the blur is doing real work — behind it is a wall of hero
- * art. Which is also why it is the most opaque material here: a popover is for
- * reading, and 127 portraits smeared underneath is a texture, not a backdrop.
- */
-.herocard {
-  background: rgba(24, 33, 45, 0.88);
-  border-color: rgba(255, 255, 255, 0.16);
-  backdrop-filter: var(--glass-deep);
-  -webkit-backdrop-filter: var(--glass-deep);
-  box-shadow:
-    var(--hairline),
-    0 24px 60px -20px rgba(0, 0, 0, 0.85);
-}
-
-/*
- * Segmented controls, the macOS way round: the track is a recess and the
- * selected segment is the piece raised out of it. The team-coloured underline
- * each active segment already carries is more specific than this, so it
- * survives.
- */
-.modes,
-.sorts {
-  border-color: transparent;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.mode-active,
-.sort-active {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.btn {
-  border-radius: 7px;
-  box-shadow: var(--hairline);
-}
-
-.btn:hover:not(:disabled):not([aria-disabled="true"]) {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
+.sheet,
 .search {
-  border-radius: 8px;
-}
-
-.search:focus {
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: var(--hairline), 0 0 0 3px rgba(120, 170, 255, 0.16);
+  backdrop-filter: var(--glass);
+  box-shadow: var(--hairline), var(--lift);
 }
 
 /* Overlay scrollbars: present while you are in the column, gone otherwise. */
@@ -3088,214 +3008,850 @@ html[data-shell="desktop"][data-os="mac"] body {
     linear-gradient(165deg, rgba(32, 44, 58, 0.82) 0%, rgba(21, 30, 40, 0.87) 48%, rgba(13, 19, 26, 0.92) 100%);
 }
 
-/* Draft intelligence: decisions first, supporting measurements on demand. */
-.analysis-intel {
-  --good: #4aef88;
-  --bad: #ff737b;
-  --mine: var(--good);
-  --enemy: var(--bad);
-  --text: #f4f7fc;
-  --text-dim: #bdcadb;
-  --intel-accent: #59bcff;
-  --intel-warning: #ffce58;
-  --intel-border: #3c5068;
-  --intel-good-rgb: 38, 226, 108;
-  --intel-bad-rgb: 255, 71, 83;
-  padding: 22px 26px 16px;
-  color: var(--text);
-  background: #0e1621;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid var(--intel-border);
-  border-top: 3px solid var(--intel-accent);
-  box-shadow: 0 10px 35px #070d1644;
+/* Draft analysis: decisions first, supporting measurements on demand. */
+
+/* `.analysis-grid` sets `display`, which would otherwise beat the attribute. */
+.analysis [hidden] {
+  display: none !important;
+}
+
+.analysis .good {
+  color: var(--good);
+}
+.analysis .bad {
+  color: var(--bad);
+}
+.analysis .even {
+  color: var(--text-dim);
+}
+.analysis .mine {
+  color: var(--mine);
+}
+.analysis .enemy {
+  color: var(--enemy);
+}
+
+.analysis-views {
+  margin-top: 12px;
+}
+
+.intel-label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.intel-small {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.analysis .sheet-section {
+  margin: 0 0 10px;
+}
+
+.intel-strategy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  align-items: center;
+  gap: 32px;
+  padding: 20px 0 18px;
+}
+
+.intel-strategy h2 {
+  max-width: 760px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.intel-strategy p {
+  max-width: 720px;
+  margin: 0;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
-.analysis-intel [hidden] { display: none !important; }
-.analysis-intel button:focus-visible, .analysis-intel summary:focus-visible { outline: 2px solid var(--intel-accent); outline-offset: 3px; }
-.analysis-intel .good { color: var(--good); }
-.analysis-intel .bad { color: var(--bad); }
-.analysis-intel .even { color: var(--text-dim); }
-.analysis-intel .analysis-head { align-items: center; }
-.intel-brand { display: flex; align-items: center; gap: 11px; }
-.intel-brand-icon { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #397aad; border-radius: 11px; background: #153652; color: var(--intel-accent); font-size: 29px; }
-.intel-brand strong { display: block; font-size: 17px; font-weight: 650; letter-spacing: -.25px; }
-.intel-brand div > span { color: var(--text-dim); font-size: 11px; }
-.analysis-intel .btn { font-size: 12px; padding: 6px 12px; background: #1e2d3f; }
-.analysis-intel .tag { color: var(--text-dim); background: #1e2d3f; }
-.intel-tabs { display: flex; align-items: center; gap: 26px; border-bottom: 1px solid var(--intel-border); margin: 22px 0 0; }
-.intel-tabs > button { display: flex; align-items: center; gap: 8px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--text-dim); padding: 11px 1px 14px; font-weight: 600; }
-.intel-tabs > button[aria-pressed="true"] { color: var(--intel-accent); border-bottom-color: var(--intel-accent); }
-.intel-tabs > button > span { font-size: 10px; padding: 0 6px; border-radius: 4px; background: #1e2d3f; }
-.intel-live { display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--text-dim); font-size: 11px; }
-.intel-live i { width: 5px; height: 5px; border-radius: 50%; background: var(--good); }
-.intel-strategy { display: grid; grid-template-columns: 1fr 245px; align-items: center; gap: 40px; padding: 30px 0 26px; }
-.intel-eyebrow { display: block; color: var(--intel-accent); font-size: 10px; font-weight: 650; letter-spacing: 1.5px; }
-.intel-strategy h2 { max-width: 740px; margin: 10px 0 10px; font-size: clamp(23px, 2.25vw, 34px); font-weight: 630; letter-spacing: -.9px; line-height: 1.18; text-wrap: balance; }
-.intel-strategy p { max-width: 720px; margin: 0; color: #dce5f1; font-size: 13px; line-height: 1.7; }
-.intel-draft-score { display: flex; align-items: center; flex-direction: column; padding: 10px 16px; border-left: 1px solid var(--intel-border); text-align: center; }
-.intel-small { font-size: 10.5px; color: var(--text-dim); }
-.intel-draft-score > .intel-small { letter-spacing: 1.3px; }
-.intel-draft-score > strong { font-size: 45px; line-height: 1.3; font-weight: 550; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
-.intel-draft-score > span:not(.intel-small) { font-size: 13px; }
-.intel-draft-score > small { font-size: 9.5px; color: var(--text-dim); margin-top: 6px; }
-.intel-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 16px 0; margin-bottom: 28px; border-block: 1px solid var(--intel-border); }
-.intel-metrics > div { padding: 0 20px; border-left: 1px solid var(--intel-border); }
-.intel-metrics > div:first-child { padding-left: 0; border: 0; }
-.intel-metrics > div:last-child { padding-right: 0; }
-.intel-metrics span { display: block; color: var(--text-dim); letter-spacing: 1px; font-size: 9px; font-weight: 600; }
-.intel-metrics strong { display: block; font-size: 21px; line-height: 1.5; font-weight: 580; margin: 4px 0; }
-.intel-metrics small { display: block; font-size: 10px; color: var(--text-dim); }
-.intel-plan-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 24px; margin-bottom: 28px; align-items: start; }
-.intel-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
-.intel-section-head h3 { margin: 0; font-size: 15px; font-weight: 620; letter-spacing: -.1px; }
-.intel-section-head > span { font-size: 10px; color: var(--text-dim); }
-.intel-section-head p { font-size: 12px; color: var(--text-dim); margin: 6px 0 0; }
-.intel-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.intel-insight { min-width: 0; padding: 16px; border: 1px solid var(--intel-border); border-radius: 10px; background: #1b293a;
-  border-top-width: 3px; }
-.intel-insight.good { border-color: #286745; border-top-color: var(--good); background: #142a21; }
-.intel-insight.bad { border-color: #75404a; border-top-color: var(--bad); background: #2d1c24; }
-.intel-insight.neutral { border-color: #376180; border-top-color: var(--intel-accent); background: #142b40; }
-.intel-insight-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 9px; letter-spacing: 1px; font-weight: 650; }
-.intel-insight.neutral .intel-insight-label { color: var(--intel-accent); }
-.intel-number { opacity: 1; font-variant-numeric: tabular-nums; }
-.intel-insight h4 { color: #ecf1f9; font-size: 14px; font-weight: 600; line-height: 1.45; margin: 10px 0 7px; }
-.intel-insight p { font-size: 12px; line-height: 1.65; margin: 0; color: #dce5f1; }
-.intel-insight details { margin-top: 11px; color: var(--text-dim); font-size: 10px; }
-.intel-insight summary { cursor: pointer; width: fit-content; }
-.intel-insight details[open] summary { margin-bottom: 8px; color: var(--intel-accent); }
-.intel-insight details p { padding-top: 8px; border-top: 1px solid var(--intel-border); font-size: 11px; }
-.intel-timing-panel { border: 1px solid var(--intel-border); border-radius: 10px; padding: 17px; background: #172435; }
-.intel-chart-legend { display: flex; gap: 12px; font-size: 10px; flex-wrap: wrap; margin: 18px 0 10px; }
-.intel-chart-legend > span:last-child { color: var(--text-dim); margin-left: auto; font-size: 9px; }
-.intel-timing-chart { width: 100%; display: block; overflow: visible; }
-.intel-timing-chart text { font-size: 10px; fill: var(--text-dim); }
-.intel-chart-grid { stroke: #344860; }
-.intel-chart-zero { stroke: #8496ae; stroke-dasharray: 4 5; }
-.intel-chart-cursor { stroke: var(--intel-accent); stroke-dasharray: 3 4; }
-.intel-curve { fill: none; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; }
-.intel-curve.mine { stroke: var(--good); }
-.intel-curve.enemy { stroke: var(--bad); stroke-dasharray: 7 4; }
-.intel-point.mine { fill: var(--good); }
-.intel-point.enemy { fill: var(--bad); }
-.intel-windows { display: flex; gap: 5px; margin: 8px 0 0; }
-.intel-windows button { flex: 1; min-width: 0; background: #1e2d3f; border: 1px solid var(--intel-border); border-radius: 6px; color: var(--text-dim); padding: 7px 4px; }
-.intel-windows button[aria-pressed="true"] { background: #174467; border-color: var(--intel-accent); }
-.intel-windows span { display: block; font-size: 9px; }
-.intel-windows strong { font-size: 15px; font-weight: 600; }
-.intel-window-detail { min-height: 106px; padding: 14px 0 5px; }
-.intel-window-detail > strong { font-size: 12px; font-weight: 600; }
-.intel-window-detail > strong span { font-weight: 400; }
-.intel-window-detail p { color: var(--text-dim); font-size: 11px; line-height: 1.6; margin: 6px 0; }
-.intel-score-parts { padding-top: 12px; border-top: 1px solid var(--intel-border); margin-top: 8px; }
-.intel-score-parts h4 { margin: 0 0 9px; font-size: 11px; font-weight: 550; }
-.intel-score-parts > div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; color: var(--text-dim); }
-.intel-score-parts small { display: block; color: var(--text-dim); font-size: 9px; margin-top: 8px; }
-.intel-lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.intel-lane { border: 1px solid var(--intel-border); border-radius: 10px; padding: 16px; background: #1b293a; }
-.intel-lane h4 { margin: 0; font-size: 13px; font-weight: 600; }
-.intel-lane-teams { display: flex; align-items: center; gap: 10px; margin: 15px 0 18px; }
-.intel-lane-teams > div { display: flex; flex: 1; gap: 8px; min-width: 0; }
-.intel-lane-teams > div:last-child { justify-content: flex-end; }
-.intel-lane-teams > div > span { min-width: 0; width: 65px; }
-.intel-lane-teams > div > span > span { display: block; color: var(--text-dim); font-size: 9px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.intel-portrait { width: 48px; height: 29px; object-fit: cover; border-radius: 5px; border: 1px solid var(--intel-border); }
-.intel-initial { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 29px; border-radius: 5px; background: var(--intel-border); }
-.intel-lane-teams > b { color: var(--text-dim); font-size: 8px; font-weight: 500; }
-.intel-lane-read { display: flex; align-items: center; justify-content: space-between; font-size: 11px; gap: 6px; }
-.intel-lane-read > span { color: var(--text-dim); }
-.intel-lane-read > strong { font-size: 13px; }
-.intel-lane-share { height: 4px; border-radius: 4px; background: var(--bad); overflow: hidden; margin: 8px 0; }
-.intel-lane-share:empty { background: var(--intel-border); }
-.intel-lane-share > span { display: block; height: 100%; background: var(--good); border-right: 2px solid #172234; }
-.intel-lane > p { font-size: 9.5px; color: var(--text-dim); margin: 8px 0 16px; }
-.intel-tradeoff { margin-top: 12px; padding: 7px 9px; font-size: 10px; color: var(--intel-warning); background: #342c19; border-left: 3px solid var(--intel-warning); border-radius: 2px; }
-.intel-evidence { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--intel-border); font-size: 11px; color: var(--text-dim); }
-.intel-evidence > summary { display: flex; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; }
-.intel-evidence > summary::after { content: "+"; color: var(--intel-accent); }
-.intel-evidence[open] > summary::after { content: "−"; }
-.intel-evidence > summary > span:first-child { margin-right: auto; color: #dce5f1; }
-.intel-evidence-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; padding: 18px 0 0; }
-.intel-evidence-grid strong { font-size: 11px; color: #dce5f1; font-weight: 550; }
-.intel-evidence-grid p { margin: 6px 0; }
-.intel-evidence-grid small { font-size: 10px; }
-.intel-evidence > p { max-width: 1000px; margin-bottom: 0; line-height: 1.7; }
-.intel-matchups { padding: 24px 0 2px; }
-.intel-matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; margin-top: 25px; align-items: start; }
-.intel-matrix-scroll { overflow-x: auto; }
-.intel-matrix { width: 100%; border-spacing: 6px; table-layout: fixed; min-width: 540px; }
-.intel-matrix caption { caption-side: bottom; text-align: left; color: var(--text-dim); font-size: 10px; padding: 12px 6px 0; }
-.intel-matrix th { font-weight: 500; font-size: 10px; padding: 6px; }
-.intel-matrix thead th:first-child { color: var(--text-dim); font-size: 9px; text-align: left; letter-spacing: .5px; }
-.intel-matrix th > span { display: block; margin-top: 4px; }
-.intel-matrix th > small { display: block; color: var(--text-dim); font-size: 8px; margin-top: 2px; }
-.intel-matrix th > img { display: inline-block; width: 52px; height: 31px; }
-.intel-matrix td { text-align: center; }
-.intel-cell { position: relative; width: 100%; min-height: 60px; padding: 10px 5px; border-radius: 7px; border: 1px solid var(--intel-border); background: #1e2d3f; font-size: 18px; font-weight: 550; font-variant-numeric: tabular-nums; transition: border-color .15s; }
-.intel-cell:hover { border-color: #e4edf8; }
-.intel-cell[aria-pressed="true"] { outline: 2px solid var(--intel-accent); outline-offset: 1px; }
-.intel-cell > small { position: absolute; top: 3px; right: 6px; font-size: 10px; opacity: .8; }
-.intel-cell-empty { display: block; padding: 18px; border-radius: 7px; background: #1e2d3f; color: var(--text-dim); }
-.intel-pair-detail { padding: 22px; border: 1px solid var(--intel-border); border-radius: 10px; background: #1b293a; }
-.intel-pair-faces { display: flex; align-items: center; gap: 12px; margin: 22px 0 15px; }
-.intel-pair-faces .intel-portrait { width: 66px; height: 39px; }
-.intel-pair-faces > span { color: var(--text-dim); font-size: 9px; }
-.intel-pair-detail h3 { margin: 0 0 15px; font-size: 17px; font-weight: 600; }
-.intel-pair-detail h3 > span { display: block; font-size: 13px; color: var(--text-dim); font-weight: 400; margin-top: 4px; }
-.intel-pair-score { font-size: 35px; font-weight: 550; }
-.intel-pair-score small { font-size: 10px; color: var(--text-dim); font-weight: 400; }
-.intel-pair-detail > p { font-size: 12px; color: #dce5f1; }
-.intel-pair-detail dl { margin: 20px 0; }
-.intel-pair-detail dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--intel-border); font-size: 10px; }
-.intel-pair-detail dt { color: var(--text-dim); }
-.intel-pair-detail dd { margin: 0; text-align: right; }
-.intel-notice, .intel-empty { color: var(--text-dim); font-size: 11px; line-height: 1.7; padding: 12px; border-radius: 6px; background: #1e2d3f; }
-.intel-compact { display: flex; flex-direction: column; gap: 5px; padding: 16px 0 4px; }
-.intel-compact > strong { font-size: 17px; }
-.intel-compact > span { color: var(--text-dim); font-size: 12px; }
-.analysis-intel .analysis-grid { margin-top: 20px; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(275px, 1fr)); }
-.analysis-intel .analysis-card { border-radius: 10px; padding: 16px; background: #1b293a; }
-.analysis-intel .analysis-card-sub { font-size: 12px; line-height: 1.65; margin: 8px 0 16px; }
-.analysis-intel .analysis-foot { line-height: 1.7; font-size: 11px; }
-.analysis-intel .btn:hover { background: #2d4560; border-color: var(--intel-accent); }
-.intel-tabs > button:hover { color: #fff; }
-.intel-windows button:hover { border-color: var(--intel-accent); }
-.intel-insight summary { color: #e3ecf9; }
-.analysis-intel .stage-line-them { stroke-dasharray: 5 3; }
-.analysis-intel .stage-line { stroke-width: 2.5px; }
+
+.intel-draft-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 16px;
+  border-left: 1px solid var(--line-soft);
+  text-align: center;
+}
+
+.intel-draft-score > strong {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.intel-draft-score > span:not(.intel-label) {
+  font-size: 13px;
+}
+
+.intel-draft-score > small {
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+}
+
+.intel-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+  padding: 14px 0;
+  border-block: 1px solid var(--line-soft);
+}
+
+.intel-metrics > div {
+  padding: 0 18px;
+  border-left: 1px solid var(--line-soft);
+}
+
+.intel-metrics > div:first-child {
+  padding-left: 0;
+  border: 0;
+}
+
+.intel-metrics > div:last-child {
+  padding-right: 0;
+}
+
+.intel-metrics > div > strong {
+  display: block;
+  margin: 4px 0 2px;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.intel-metrics > div > small {
+  display: block;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.intel-plan-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.intel-insights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Tinted towards what the call is about, the way a team's chips are. */
+.intel-insight {
+  --tone: var(--accent);
+  min-width: 0;
+  padding: 12px 14px;
+  color: var(--tone);
+  background:
+    linear-gradient(to bottom, color-mix(in srgb, var(--tone) 10%, transparent), transparent 60%),
+    var(--bg-tile);
+  border: 1px solid var(--line-soft);
+  border-top: 2px solid var(--tone);
+  border-radius: var(--radius-md);
+}
+
+.intel-insight.good {
+  --tone: var(--good);
+}
+.intel-insight.bad {
+  --tone: var(--bad);
+}
+
+.intel-insight-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.intel-number {
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+.intel-insight h4 {
+  margin: 8px 0 6px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.intel-insight p {
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.intel-insight details {
+  margin-top: 10px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.intel-insight summary {
+  width: fit-content;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.intel-insight summary:hover,
+.intel-insight details[open] summary {
+  color: var(--text);
+}
+
+.intel-insight details[open] summary {
+  margin-bottom: 6px;
+}
+
+.intel-insight details p {
+  padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+
+.intel-timing-panel {
+  padding: 12px 14px;
+  background: var(--bg-tile);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.intel-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 4px 0 6px;
+  font-size: 11px;
+}
+
+.intel-chart-legend > span:last-child {
+  margin-left: auto;
+  color: var(--text-dim);
+}
+
+.intel-timing-chart {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.intel-timing-chart text {
+  font-size: 10px;
+  fill: var(--text-dim);
+}
+
+.intel-chart-grid {
+  stroke: var(--line-soft);
+}
+
+.intel-chart-zero {
+  stroke: var(--line-strong);
+  stroke-dasharray: 4 5;
+}
+
+.intel-chart-cursor {
+  stroke: var(--accent);
+  stroke-dasharray: 3 4;
+}
+
+.intel-curve {
+  fill: none;
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.intel-curve.mine {
+  stroke: var(--mine);
+}
+.intel-curve.enemy {
+  stroke: var(--enemy);
+  stroke-dasharray: 7 4;
+}
+.intel-point.mine {
+  fill: var(--mine);
+}
+.intel-point.enemy {
+  fill: var(--enemy);
+}
+
+.intel-windows {
+  display: flex;
+  margin-top: 8px;
+}
+
+.intel-windows > .seg-btn {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 4px;
+}
+
+.intel-windows span {
+  font-size: 10.5px;
+}
+
+.intel-windows strong {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.intel-window-detail {
+  min-height: 100px;
+  padding: 12px 0 4px;
+}
+
+.intel-window-detail > strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.intel-window-detail > strong span {
+  font-weight: 400;
+}
+
+.intel-window-detail p {
+  margin: 6px 0;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.intel-score-parts {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.intel-score-parts h4 {
+  margin: 0 0 6px;
+}
+
+.intel-score-parts > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.intel-score-parts small {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+}
+
+.intel-lanes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.intel-lane {
+  padding: 12px 14px;
+  background: var(--bg-tile);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.intel-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.intel-card-head h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.intel-card-head > span {
+  font-size: 11px;
+}
+
+.intel-lane-teams {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 14px;
+}
+
+.intel-lane-teams > div {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.intel-lane-teams > div:last-child {
+  justify-content: flex-end;
+}
+
+.intel-lane-teams > div > span {
+  width: 64px;
+  min-width: 0;
+}
+
+.intel-lane-teams > div > span > span {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intel-lane-teams > b {
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.intel-portrait {
+  width: 48px;
+  height: 27px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+}
+
+.intel-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 27px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-tile);
+}
+
+.intel-lane-read {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11.5px;
+}
+
+.intel-lane-read > span {
+  color: var(--text-dim);
+}
+
+.intel-lane-read > strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.intel-lane-share {
+  height: 4px;
+  margin: 6px 0;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--enemy);
+}
+
+.intel-lane-share:empty {
+  background: var(--line);
+}
+
+.intel-lane-share > span {
+  display: block;
+  height: 100%;
+  background: var(--mine);
+  border-right: 2px solid var(--bg);
+}
+
+.intel-lane > p {
+  margin: 6px 0 12px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+}
+
+/* The same shape as a lane card's split note: a reading that argues with the figure above it. */
+.intel-tradeoff {
+  margin-top: 10px;
+  padding: 5px 8px;
+  color: var(--warn-text);
+  font-size: 11px;
+  background: var(--warn-soft);
+  border-left: 2px solid var(--warn);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+.intel-evidence {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+
+.intel-evidence > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.intel-evidence > summary::after {
+  content: "+";
+  color: var(--accent);
+}
+
+.intel-evidence[open] > summary::after {
+  content: "−";
+}
+
+.intel-evidence > summary > span:first-child {
+  margin-right: auto;
+  color: var(--text);
+}
+
+.intel-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 14px;
+}
+
+.intel-evidence-grid strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.intel-evidence-grid p {
+  margin: 4px 0;
+}
+
+.intel-evidence-grid small {
+  font-size: 11px;
+}
+
+.intel-evidence > p {
+  max-width: 1000px;
+  margin: 12px 0 0;
+  line-height: 1.6;
+}
+
+.intel-matchups {
+  padding-top: 14px;
+}
+
+.intel-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.intel-head-row > .sheet-section {
+  margin: 0;
+}
+
+.intel-matrix-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-items: start;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.intel-matrix-scroll {
+  overflow-x: auto;
+}
+
+.intel-matrix {
+  width: 100%;
+  min-width: 540px;
+  border-spacing: 6px;
+  table-layout: fixed;
+}
+
+.intel-matrix caption {
+  padding: 10px 6px 0;
+  caption-side: bottom;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: left;
+}
+
+.intel-matrix th {
+  padding: 6px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.intel-matrix thead th:first-child {
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+.intel-matrix th > span {
+  display: block;
+  margin-top: 4px;
+}
+
+.intel-matrix th > small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.intel-matrix th > img {
+  display: inline-block;
+  width: 52px;
+  height: 29px;
+}
+
+.intel-matrix td {
+  text-align: center;
+}
+
+.intel-cell {
+  position: relative;
+  width: 100%;
+  min-height: 54px;
+  padding: 10px 5px;
+  background: var(--bg-tile);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.12s;
+}
+
+.intel-cell:hover {
+  border-color: var(--line-strong);
+}
+
+.intel-cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.intel-cell > small {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.intel-cell-empty {
+  display: block;
+  padding: 16px;
+  color: var(--text-dim);
+  background: var(--bg-tile);
+  border-radius: var(--radius-sm);
+}
+
+.intel-pair-detail {
+  padding: 14px 16px;
+  background: var(--bg-tile);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.intel-pair-faces {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.intel-pair-faces .intel-portrait {
+  width: 64px;
+  height: 36px;
+}
+
+.intel-pair-faces > span {
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.intel-pair-detail h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.intel-pair-detail h3 > span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.intel-pair-score {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.intel-pair-score small {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.intel-pair-detail > p {
+  font-size: 12px;
+}
+
+.intel-pair-detail dl {
+  margin: 12px 0;
+}
+
+.intel-pair-detail dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 11.5px;
+}
+
+.intel-pair-detail dt {
+  color: var(--text-dim);
+}
+
+.intel-pair-detail dd {
+  margin: 0;
+  text-align: right;
+}
+
+.intel-notice,
+.intel-empty {
+  padding: 10px 12px;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  line-height: 1.6;
+  background: var(--bg-tile);
+  border-radius: var(--radius-sm);
+}
+
+.intel-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 12px;
+}
+
+.intel-compact > strong {
+  font-size: 16px;
+}
+
+.intel-compact > span {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
 @media (min-width: 1900px) {
-  .analysis-intel { padding: 26px 36px 20px; }
-  .intel-plan-grid { grid-template-columns: minmax(0, 2.25fr) minmax(350px, 1fr); }
-  .intel-insights { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .intel-insight { padding: 21px; }
+  .intel-plan-grid {
+    grid-template-columns: minmax(0, 2.25fr) minmax(350px, 1fr);
+  }
+  .intel-insights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
+
 @media (max-width: 1100px) {
-  .analysis-intel { padding: 18px; }
-  .intel-plan-grid { grid-template-columns: minmax(0, 1fr); }
-  .intel-timing-panel { max-width: none; }
-  .intel-timing-chart { max-height: 230px; }
-  .intel-metrics strong { font-size: 18px; }
-  .intel-matrix-layout { grid-template-columns: minmax(0, 1fr); }
-  .intel-pair-detail { display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; }
-  .intel-pair-detail > .intel-eyebrow, .intel-pair-detail > .intel-notice { grid-column: 1 / -1; }
-  .intel-evidence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .intel-plan-grid,
+  .intel-matrix-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .intel-timing-chart {
+    max-height: 230px;
+  }
+  .intel-pair-detail {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 30px;
+  }
+  .intel-pair-detail > .intel-label,
+  .intel-pair-detail > .intel-notice {
+    grid-column: 1 / -1;
+  }
+  .intel-evidence-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
+
 @media (max-width: 700px) {
-  .analysis-intel { margin: 0 8px; padding: 15px; }
-  .intel-strategy { grid-template-columns: 1fr; gap: 18px; padding: 24px 0; }
-  .intel-draft-score { border: 0; border-top: 1px solid var(--intel-border); padding-top: 16px; }
-  .intel-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 0; }
-  .intel-metrics > div:nth-child(3) { border: 0; padding-left: 0; }
-  .intel-insights, .intel-lanes { grid-template-columns: 1fr; }
-  .intel-tabs { gap: 20px; }
-  .intel-live { display: none; }
-  .intel-section-head { flex-wrap: wrap; gap: 5px; }
-  .intel-evidence > summary { flex-wrap: wrap; font-size: 10px; }
-  .intel-pair-detail { display: block; }
-  .intel-evidence-grid { grid-template-columns: 1fr; }
-  .analysis-intel .analysis-meta { margin-left: 0; }
+  .sheet {
+    margin: 0 8px 4px;
+    padding: 12px;
+  }
+  .intel-strategy {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px 0;
+  }
+  .intel-draft-score {
+    padding: 12px 0 0;
+    border: 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .intel-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 0;
+  }
+  .intel-metrics > div:nth-child(3) {
+    padding-left: 0;
+    border: 0;
+  }
+  .intel-insights,
+  .intel-lanes,
+  .intel-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+  .intel-evidence > summary {
+    flex-wrap: wrap;
+  }
+  .intel-pair-detail {
+    display: block;
+  }
 }
 
 /* The off-role shortlist under the pick panel. Set apart from the ranking
@@ -3338,7 +3894,7 @@ html[data-shell="desktop"][data-os="mac"] body {
   width: 100%;
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 4px 6px;
   text-align: left;
 }

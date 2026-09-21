@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { HeroPortrait } from "./HeroPortrait";
+import { useSheetFocus } from "./useSheetFocus";
 import { POSITION_LABEL } from "../lib/roles";
 import { formatSigned } from "../lib/scoring";
 import { breakdownOf, costOf, describeOption, headlineFor } from "../lib/rebalanceCopy";
@@ -112,7 +113,7 @@ function Option({
             Both halves of the gain, always, whichever of them is the headline.
             A score option leads with their sum and a lane option leads with one
             lane — either way the reader is owed the draft figure, because that
-            is the number the badge in the top bar shows and the one they will
+            is the number on the Draft analysis button and the one they will
             check this against.
           */}
           <span title="The two terms behind the figure on the left: what the arrangement does to the draft number, and what it does to how well your five suit their seats.">
@@ -232,38 +233,20 @@ export function Rebalance({
     options.length === 0 &&
     laneFixes.length === 0;
   const panel = useRef<HTMLElement>(null);
-
-  /**
-   * Opening moves the reader here, and Escape sends them back.
-   *
-   * The panel appears above the board and pushes several hundred pixels of it
-   * down, which is a large change to make to a page while leaving the keyboard
-   * focus behind on a button that now says something else. `onClose` restores
-   * focus to the opener — see `App`.
-   */
-  useEffect(() => {
-    panel.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // `onClose` restores focus to the opener — see `App`.
+  useSheetFocus(panel, onClose);
 
   return (
     <section
-      className="rebalance"
+      className="sheet sheet-rebalance"
       ref={panel}
       tabIndex={-1}
       role="region"
       aria-labelledby="rebalance-title"
     >
       <div className="rebalance-inner">
-        <header className="rebalance-head">
-          <div className="rebalance-head-text">
+        <header className="sheet-head">
+          <div className="sheet-title">
             <h2 id="rebalance-title">Rebalance</h2>
             <p className="muted">
               {`Same five heroes, different seats. The draft reads ${formatSigned(
@@ -280,7 +263,7 @@ export function Rebalance({
             </p>
           </div>
 
-          <div className="rebalance-actions">
+          <div className="sheet-actions">
             {/*
               The deployment is a property of the board, not of this list, and it
               is set here because this is the only place in the app that can set
@@ -288,24 +271,28 @@ export function Rebalance({
               re-runs the search, and a control that quietly reshuffles the list
               under the reader's cursor has to at least say what it is.
             */}
-            <div className="rebalance-plan" role="group" aria-label="Lane deployment">
-              <span className="rebalance-plan-label muted">Deployment</span>
-              {(["standard", "swapped"] as LanePlan[]).map((plan) => (
-                <button
-                  key={plan}
-                  type="button"
-                  className={`pos-chip ${lanePlan === plan ? "pos-chip-active" : ""}`}
-                  onClick={() => onLanePlan(plan)}
-                  aria-pressed={lanePlan === plan}
-                  title={
-                    plan === "standard"
-                      ? "Normal lanes: our safe duo faces their offlane duo"
-                      : "Swapped lanes: safe duo against safe duo, offlane against offlane"
-                  }
-                >
-                  {plan === "standard" ? "Normal" : "Swapped"}
-                </button>
-              ))}
+            <div className="rebalance-plan">
+              <span className="rebalance-plan-label muted" id="rebalance-plan-label">
+                Deployment
+              </span>
+              <div className="seg seg-sm" role="group" aria-labelledby="rebalance-plan-label">
+                {(["standard", "swapped"] as LanePlan[]).map((plan) => (
+                  <button
+                    key={plan}
+                    type="button"
+                    className="seg-btn"
+                    onClick={() => onLanePlan(plan)}
+                    aria-pressed={lanePlan === plan}
+                    title={
+                      plan === "standard"
+                        ? "Normal lanes: our safe duo faces their offlane duo"
+                        : "Swapped lanes: safe duo against safe duo, offlane against offlane"
+                    }
+                  >
+                    {plan === "standard" ? "Normal" : "Swapped"}
+                  </button>
+                ))}
+              </div>
             </div>
             <button type="button" className="btn" onClick={onClose}>
               Close
@@ -359,7 +346,7 @@ export function Rebalance({
 
         {seatFixes.length > 0 && (
           <>
-            <h3 className="rebalance-aside-head">
+            <h3 className="sheet-section">
               Put them back on a seat they play
               <span className="muted">
                 {" — these are the only rows here allowed to cost score, and the figure on each says what it costs"}
@@ -371,7 +358,7 @@ export function Rebalance({
 
         {smallMoves.length > 0 && (
           <>
-            <h3 className="rebalance-aside-head">
+            <h3 className="sheet-section">
               One move at a time
               <span className="muted">
                 {" — every single trade that already makes the board better. Take one and the list re-runs on what it leaves; two or three of these usually settle a draft."}
@@ -384,7 +371,7 @@ export function Rebalance({
         {bigger.length > 0 && (
           <>
             {shown.size > 0 && (
-              <h3 className="rebalance-aside-head">
+              <h3 className="sheet-section">
                 All at once
                 <span className="muted">
                   {" — reseatings no sequence of single trades gets to in one step"}
@@ -397,7 +384,7 @@ export function Rebalance({
 
         {laneFixes.length > 0 && (
           <>
-            <h3 className="rebalance-aside-head">
+            <h3 className="sheet-section">
               Worth it for one lane
               <span className="muted">
                 {" — the whole-board figure barely moves, but a lane you are losing stops losing"}
@@ -424,7 +411,7 @@ export function Rebalance({
         {beyondThreshold.length > 0 &&
           (nothingLegal ? (
             <>
-              <h3 className="rebalance-aside-head">
+              <h3 className="sheet-section">
                 Beyond your role threshold
                 <span className="muted">
                   {" — these work, but need somebody in a position they hardly ever play"}
@@ -448,8 +435,8 @@ export function Rebalance({
         <footer className="rebalance-foot muted">
           <p>
             Single trades first — all of them — then one arrangement per amount of upheaval.
-            Figures are percentage points of win rate: <strong>draft</strong> is the number in the
-            top bar — matchups, cohesion and timing, all measured over whole games;{" "}
+            Figures are percentage points of win rate: <strong>draft</strong> is the number on the
+            Draft analysis button — matchups, cohesion and timing, all measured over whole games;{" "}
             <strong>lanes</strong> is what the laning stage is worth, from how the pairings standing
             opposite each other have gone in lane, each side&apos;s record in the lane they would be
             standing in, and how the two duos work together;{" "}
