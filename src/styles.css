@@ -71,12 +71,13 @@ body {
    * blooms in the team colours — mine on the left where my panel is, theirs on
    * the right — over a vertical fall from slate to near-black.
    */
-  background-color: var(--bg);
-  background-image:
+  --backdrop:
     radial-gradient(46rem 30rem at 4% -10%, rgba(56, 180, 95, 0.22), transparent 58%),
     radial-gradient(44rem 28rem at 99% -6%, rgba(224, 72, 61, 0.2), transparent 56%),
     radial-gradient(58rem 42rem at 42% 112%, rgba(74, 168, 224, 0.18), transparent 60%),
     linear-gradient(165deg, #202c3a 0%, #151e28 48%, #0d131a 100%);
+  background-color: var(--bg);
+  background-image: var(--backdrop);
   background-attachment: fixed;
   color: var(--text);
   font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -2945,10 +2946,11 @@ code {
  * The macOS material treatment.
  *
  * One rule decides where blur goes: a surface gets it if a person would call
- * it a pane — the top bar, the side panels, the popovers — and never if it is
- * something sitting *on* a pane. The hero grid alone is 127 tiles; each blur
- * is composited separately, and blurring all of them costs a frame to say
- * nothing the pane behind them has not already said.
+ * it a pane — the side panels, the popovers — and never if it is something
+ * sitting *on* a pane. The hero grid alone is 127 tiles; each blur is
+ * composited separately, and blurring all of them costs a frame to say nothing
+ * the pane behind them has not already said. The top bar is the one pane
+ * without it: it is opaque, for the reason given at its rule.
  */
 
 :root {
@@ -2962,7 +2964,6 @@ code {
   --lift: 0 10px 28px -18px rgba(0, 0, 0, 0.75);
 }
 
-.topbar,
 .settings,
 .team,
 .panel,
@@ -2977,12 +2978,20 @@ code {
 }
 
 /*
- * Window chrome rather than a card: it spans the whole width, so it gets the
- * material and the hairline but none of the lift — a shadow under something
- * with no edges reads as a smudge.
+ * Opaque, not glass: the page scrolls under this bar while the read-out is
+ * open. It paints the page's backdrop at the viewport's size, and since it
+ * never leaves the top of the window the blooms line up with the body's.
+ * `background-attachment: fixed` would too, but it moves every page scroll
+ * onto the main thread. No lift: a shadow under something with no edges
+ * reads as a smudge.
  */
 .topbar {
-  background: rgba(226, 238, 255, 0.05);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(226, 238, 255, 0.05), rgba(226, 238, 255, 0.05)),
+    var(--backdrop);
+  background-size: 100% 100vh;
+  background-repeat: no-repeat;
   border-bottom-color: rgba(255, 255, 255, 0.1);
   box-shadow: var(--hairline);
 }
