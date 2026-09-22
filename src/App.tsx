@@ -1088,8 +1088,7 @@ export default function App() {
             <span className={`hint-slot hint-slot-${activeSlot}`}>
               {activeSlot === "mine" ? "green" : activeSlot === "enemy" ? "red" : "grey"}
             </span>{" "}
-            to say so · the two buttons on a hovered tile cover the other slots ·{" "}
-            <kbd>Shift</kbd>+click bans for {banSide === "mine" ? "you" : "them"} ·{" "}
+            to say so · <kbd>Shift</kbd>+click bans for {banSide === "mine" ? "you" : "them"} ·{" "}
             <kbd>Shift</kbd>+<kbd>Alt</kbd>+click bans for the other side · <kbd>Alt</kbd>+click
             sends to the other team · right-click removes · <kbd>Enter</kbd> takes the top search
             hit · hover the <span className="hint-info">i</span> on a tile for the full breakdown

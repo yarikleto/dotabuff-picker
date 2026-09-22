@@ -1355,10 +1355,9 @@ code {
 /* -------------------------------------------------------------- hero card */
 
 /*
- * The row of overlay buttons: the two slots the tile click is *not* aimed at,
- * then the breakdown trigger. Hidden until the cell is hovered, so 120-odd
- * tiles stay quiet, and inert while hidden so an invisible button cannot be
- * clicked by accident.
+ * The breakdown trigger. Hidden until the cell is hovered, so 120-odd tiles
+ * stay quiet, and inert while hidden so an invisible button cannot be clicked
+ * by accident.
  */
 .tile-actions {
   position: absolute;
@@ -1366,9 +1365,6 @@ code {
   bottom: 20px;
   display: flex;
   align-items: center;
-  /* Three 16px discs plus these gaps clear the rank badge at the narrowest
-   * tile the grid will draw (84px). */
-  gap: 2px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s;
@@ -1382,7 +1378,6 @@ code {
   pointer-events: auto;
 }
 
-.tile-act,
 .tile-info {
   width: 16px;
   height: 16px;
@@ -1394,60 +1389,15 @@ code {
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
-  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.08s;
-}
-
-.tile-act:hover,
-.tile-info:hover {
-  transform: scale(1.12);
-}
-
-/*
- * Colour is the whole message here — the same green, red and grey as the click
- * target selector, the team panels and the ban list — so the buttons are drawn
- * as filled discs rather than outlines, and read at 16px from the corner of the
- * eye without being looked at directly.
- */
-.tile-act {
-  border: 1px solid transparent;
-  color: #0b0f13;
-  font-size: 11px;
-}
-
-.tile-act-mine {
-  background: var(--mine);
-}
-.tile-act-enemy {
-  background: var(--enemy);
-}
-.tile-act-banned {
-  background: var(--banned);
-  color: #e6ecf2;
-}
-
-/* Already in that slot, so the click takes them back out. */
-.tile-act-on {
-  background: rgba(10, 14, 18, 0.85);
-  color: #cdd7e2;
-}
-.tile-act-on.tile-act-mine {
-  border-color: var(--mine);
-  color: var(--mine);
-}
-.tile-act-on.tile-act-enemy {
-  border-color: var(--enemy);
-  color: var(--enemy);
-}
-.tile-act-on.tile-act-banned {
-  border-color: var(--banned);
-  color: #cdd7e2;
-}
-
-.tile-info {
   border: 1px solid rgba(160, 178, 196, 0.5);
   background: rgba(10, 14, 18, 0.85);
   color: #cdd7e2;
   font-style: italic;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.08s;
+}
+
+.tile-info:hover {
+  transform: scale(1.12);
 }
 
 .tile-info:hover,

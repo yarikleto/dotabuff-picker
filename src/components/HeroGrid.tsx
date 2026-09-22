@@ -27,22 +27,6 @@ const ATTR_LABEL: Record<HeroAttr, string> = {
 
 const ATTR_ORDER: HeroAttr[] = ["str", "agi", "int", "uni"];
 
-const SLOT_ORDER: Slot[] = ["mine", "enemy", "banned"];
-
-/** Reads as the tail of "add X to …" / "remove X from …". */
-const SLOT_PLACE: Record<Slot, string> = {
-  mine: "your team",
-  enemy: "the enemy team",
-  banned: "the ban list",
-};
-
-/**
- * Colour is what tells these three apart — the same green, red and grey as the
- * click-target selector and the team panels — so the glyph only has to say
- * whether the click adds or takes away.
- */
-const SLOT_GLYPH: Record<Slot, string> = { mine: "+", enemy: "+", banned: "✕" };
-
 export interface HeroGridProps {
   heroes: Hero[];
   grouped: boolean;
@@ -201,7 +185,7 @@ const HeroTile = memo(function HeroTile({
   const badge = ranked ? score : advantage;
 
   return (
-    // The overlay buttons sit *beside* the tile rather than inside it: a button
+    // The overlay button sits *beside* the tile rather than inside it: a button
     // cannot nest in a button, and the tile is one.
     //
     // The wrapper carries the active slot so the hover state can be tinted with
@@ -254,37 +238,7 @@ const HeroTile = memo(function HeroTile({
         )}
       </button>
 
-      {/*
-       * The two slots the click target is *not* set to.
-       *
-       * Only two, because the third is what the tile itself already does — a
-       * button that repeats the click underneath it is a button that has to be
-       * read before it can be ignored. Shift and Alt do the same job for anyone
-       * who knows they exist; this is the same three moves without the reading.
-       */}
       <div className="tile-actions">
-        {SLOT_ORDER.filter((s) => s !== activeSlot).map((s) => {
-          const here = slot === s;
-          const label = here
-            ? `Remove ${hero.name} from ${SLOT_PLACE[s]}`
-            : `Add ${hero.name} to ${SLOT_PLACE[s]}`;
-          return (
-            <button
-              key={s}
-              type="button"
-              className={`tile-act tile-act-${s} ${here ? "tile-act-on" : ""}`}
-              aria-label={label}
-              title={label}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAssign(hero.slug, s);
-              }}
-            >
-              {here ? "−" : SLOT_GLYPH[s]}
-            </button>
-          );
-        })}
-
         <button
           type="button"
           className={`tile-info ${infoOpen ? "tile-info-on" : ""}`}
