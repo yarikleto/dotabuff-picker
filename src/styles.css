@@ -1391,7 +1391,6 @@ code {
   flex: none;
   padding: 0;
   border-radius: 50%;
-  backdrop-filter: blur(2px);
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
@@ -1975,7 +1974,6 @@ code {
   border-radius: var(--radius-xs);
   color: #cdd7e2;
   background: rgba(10, 14, 18, 0.8);
-  backdrop-filter: blur(2px);
 }
 
 .tile-badge {
@@ -1987,7 +1985,6 @@ code {
   padding: 1px 4px;
   border-radius: var(--radius-xs);
   background: rgba(10, 14, 18, 0.85);
-  backdrop-filter: blur(2px);
 }
 
 .tile-badge.good {
