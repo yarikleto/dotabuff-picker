@@ -121,8 +121,8 @@ parser the Node path uses, inlined by `scripts/build-collector.mjs`. A real
 Chromium means a real handshake and a real cookie jar, so the requests go
 through as ordinary browsing. You do not have to ask for any of this.
 
-Electron is already the devDependency behind `npm run desktop`, so the browser
-route costs no extra install.
+Electron is a devDependency, so `npm install` sets up the browser route with
+everything else. The site itself never loads it.
 
 ## Driving it by hand
 

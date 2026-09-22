@@ -1,7 +1,7 @@
 # Working in this repository
 
-A Dota 2 pick/ban assistant: a static React + Vite site, also packaged with
-Electron, that ranks heroes from data files committed under `public/data/`.
+A Dota 2 pick/ban assistant: a static React + Vite site that ranks heroes from
+data files committed under `public/data/`.
 [README.md](README.md) is the overview and `docs/` has the detail.
 
 ## Commands
@@ -9,7 +9,7 @@ Electron, that ranks heroes from data files committed under `public/data/`.
 ```bash
 npm install
 npm run dev             # http://localhost:5180
-npm test                # scripts/, electron/ and src/lib/ under node --test
+npm test                # scripts/ and src/lib/ under node --test
 npm run build           # typecheck + production bundle into dist/
 npm run refresh         # recollect every data set, then the README blocks
 npm run readme          # the README blocks alone, from public/data/
@@ -38,8 +38,11 @@ npm run readme:images   # re-render docs/assets/banner.jpg and screenshot.jpg
 ## Code
 
 - Every URL in the build is relative (`base: "./"` in `vite.config.ts`): the
-  site is served from a sub-path on GitHub Pages and from `app://bundle/` in the
-  desktop app. Build asset URLs on `import.meta.env.BASE_URL`, never on `/`.
+  site is served from a sub-path on GitHub Pages. Build asset URLs on
+  `import.meta.env.BASE_URL`, never on `/`.
+- Electron is a devDependency for two scripts, never for the site: the Dotabuff
+  scraper's browser route (`scripts/scrape-electron.mjs`, which gets past
+  Cloudflare where plain Node gets a 403) and `npm run readme:images`.
 - `localStorage` keys start with `dotabuff-picker.` — every project site under
   one `github.io` account shares an origin.
 - Pure logic sits in modules with a test file beside them (`scripts/parse.mjs`,
@@ -65,6 +68,5 @@ row there before it is committed.
 
 ## Publishing
 
-A push to `main` deploys the site (`.github/workflows/pages.yml`) and builds the
-desktop apps (`.github/workflows/release.yml`); a `v*` tag also drafts a GitHub
-release. Push and tag only when the user asks.
+A push to `main` deploys the site (`.github/workflows/pages.yml`). Push only when
+the user asks.

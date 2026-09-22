@@ -37,7 +37,7 @@ replaces any browser-driven Dotabuff scraping skill.
   `<!-- badges:start … -->` / `<!-- data:start … -->` and their `:end` markers.
   Rerun the step that writes them.
 - **Commit when the checks pass; push only when the user says so.** A push to
-  `main` deploys the public site and starts the desktop builds.
+  `main` deploys the public site.
 
 ## Procedure
 

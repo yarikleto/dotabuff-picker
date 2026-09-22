@@ -323,15 +323,6 @@ export function badgeBlock({ rows, patch, heroes, links }) {
         `https://img.shields.io/github/actions/workflow/status/${links.slug}/pages.yml?${status}`,
       )}"></a>`,
     );
-    bottom.push(
-      badge({
-        label: "desktop",
-        message: "macOS · Windows · Linux",
-        color: COLORS.neutral,
-        link: `${links.repo}/releases`,
-        alt: "Desktop builds for macOS, Windows and Linux",
-      }),
-    );
   }
 
   const lines = ["<p>", ...top.map((b) => `  ${b}`), "  <br>", ...bottom.map((b) => `  ${b}`), "</p>"];

@@ -12,7 +12,6 @@
   <a href="#the-data"><img alt="Data from Dotabuff, STRATZ and OpenDota" src="https://img.shields.io/badge/data-Dotabuff_%C2%B7_STRATZ_%C2%B7_OpenDota-3b4654?style=flat-square"></a>
   <a href="#license"><img alt="Code license: MIT" src="https://img.shields.io/badge/code_license-MIT-3b4654?style=flat-square"></a>
   <a href="https://github.com/yarikleto/dotabuff-picker/actions/workflows/pages.yml"><img alt="Site deploy status" src="https://img.shields.io/github/actions/workflow/status/yarikleto/dotabuff-picker/pages.yml?branch=main&amp;label=site&amp;style=flat-square&amp;logo=github"></a>
-  <a href="https://github.com/yarikleto/dotabuff-picker/releases"><img alt="Desktop builds for macOS, Windows and Linux" src="https://img.shields.io/badge/desktop-macOS_%C2%B7_Windows_%C2%B7_Linux-3b4654?style=flat-square"></a>
 </p>
 
 <h3><a href="https://yarikleto.github.io/dotabuff-picker/">Open the picker →</a></h3>
@@ -27,8 +26,7 @@
 A pick/ban assistant for Dota 2. Mark who the enemy took, who you took and what
 got banned: it ranks the heroes that match up best into the enemy line-up *and*
 work best beside your own, reads every lane seat by seat, and tells you which
-hero the enemy most wants next. It runs in the browser and as a desktop app for
-macOS, Windows and Linux.
+hero the enemy most wants next. It runs in the browser, with nothing to install.
 
 <img src="docs/assets/screenshot.jpg" alt="The picker mid-draft: Faceless Void and Crystal Maiden against Invoker, Axe and Lion, with the mid candidates ranked on the right" width="100%">
 
@@ -133,20 +131,14 @@ committing, and what to do when a step fails:
 ```bash
 npm install
 npm run dev        # http://localhost:5180
-npm run desktop    # the same app in a native window, hot reload included
 ```
 
 The data files are committed, so a fresh clone recommends straight away.
 
-**Website.** The picker is a static site: the page reads plain JSON from
-`public/data/` at runtime, and `.github/workflows/pages.yml` tests, builds and
-publishes it to GitHub Pages on every push to `main`. Setup, caching and why
-every path in the build is relative: [docs/website.md](docs/website.md).
-
-**Desktop.** `npm run dist` packages the same build with Electron for the
-machine you are on; tagging `v*` builds a `.dmg`, an `.exe` and an `.AppImage`
-on CI. Data ships inside the package, so new numbers mean a new version.
-Details, including the unsigned-build warnings: [docs/desktop.md](docs/desktop.md).
+The picker is a static site: the page reads plain JSON from `public/data/` at
+runtime, and `.github/workflows/pages.yml` tests, builds and publishes it to
+GitHub Pages on every push to `main`. Setup, caching and why every path in the
+build is relative: [docs/website.md](docs/website.md).
 
 ## Development
 
@@ -190,6 +182,7 @@ scripts/stratz.mjs           STRATZ client: token, pacing, hero ids, weeks (unit
 scripts/readme.mjs           the README's badges and data table, from public/data
 scripts/readme-status.mjs    patch spans, badges, the table (pure, unit-tested)
 scripts/readme-images.mjs    renders docs/assets/banner.jpg and screenshot.jpg
+scripts/app-scheme.mjs       app:// URL -> file in dist/ for readme-images (pure, unit-tested)
 src/lib/scoring.ts           matchup and synergy maths, lane weighting, the ranking
 src/lib/analysis.ts          the draft taken apart: lanes, stages, weak links
 src/lib/rebalance.ts         the same five heroes in every other seat and lane
@@ -203,8 +196,6 @@ src/components/DraftAnalysis.tsx  the panel behind the Draft analysis button
 src/components/Rebalance.tsx the reshuffle shortlist behind the top-bar button
 src/state/draft.ts           draft reducer + localStorage
 src/data/heroes.ts           the hero roster every collector finds heroes through
-electron/main.mjs            the desktop window: app:// protocol, CSP, menu wiring
-electron/bundle.mjs          app:// URL -> file in dist/ (pure, unit-tested)
 .github/workflows/pages.yml  tests, builds and publishes the site to GitHub Pages
 .claude/skills/refresh-data  the data routine, written for agents
 ```

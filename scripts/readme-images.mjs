@@ -1,5 +1,5 @@
 /**
- * Renders the README's two images with the Electron behind `npm run desktop`:
+ * Renders the README's two images in hidden Electron windows:
  *
  *   npm run readme:images      # builds, then writes docs/assets/*.jpg
  *
@@ -8,8 +8,8 @@
  *
  * Both are captured at twice their CSS size through the DevTools protocol
  * rather than `capturePage`, so the result is the same on any display. The app
- * is served over the same app:// origin the desktop build uses, in an
- * in-memory session: the sample draft never lands in anyone's saved state.
+ * is served over app:// (scripts/app-scheme.mjs), in an in-memory session: the
+ * sample draft never lands in anyone's saved state.
  */
 
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { BrowserWindow, app, protocol, session } from "electron";
 
-import { INDEX, SCHEME, contentType, resolveRequest } from "../electron/bundle.mjs";
+import { INDEX, SCHEME, contentType, resolveRequest } from "./app-scheme.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(ROOT, "dist");
@@ -128,9 +128,6 @@ async function run() {
 
   // No "persist:" prefix: the partition lives in memory and dies with the run.
   const ses = session.fromPartition("readme-images");
-  // src/main.tsx turns on the desktop glass when it sees Electron in the user
-  // agent; the README shows the site.
-  ses.setUserAgent(ses.getUserAgent().replace(/\s?Electron\/\S+/, ""));
   ses.protocol.handle(SCHEME, async (request) => {
     const { file, error } = resolveRequest(request.url, DIST);
     if (!file) return new Response(error, { status: 404 });

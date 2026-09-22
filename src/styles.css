@@ -2,8 +2,8 @@
   --bg: #0f1419;
 
   /*
-   * Surfaces are translucent, so whatever is behind the window shows faintly
-   * through them and the panes read as glass rather than as boxes. They keep
+   * Surfaces are translucent, so the page's backdrop shows faintly through
+   * them and the panes read as glass rather than as boxes. They keep
    * the four names the rest of this sheet already used, which is why nothing
    * downstream had to change: every panel, tile and chip inherited the
    * material. The blur that completes the effect is applied to panes only —
@@ -2985,24 +2985,6 @@ code {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.28);
   background-clip: padding-box;
-}
-
-/*
- * In the desktop shell on macOS the window is itself a vibrancy material
- * (`vibrancy: "under-window"` in electron/main.mjs), so the page has to stay
- * translucent for the desktop behind it to come through. Full screen has
- * nothing behind it to sample, which is why the gradients stay: they carry the
- * look on their own there, and tint the real material when windowed.
- *
- * `data-shell` and `data-os` are set in src/main.tsx from the user agent.
- */
-html[data-shell="desktop"][data-os="mac"] body {
-  background-color: transparent;
-  background-image:
-    radial-gradient(46rem 30rem at 4% -10%, rgba(56, 180, 95, 0.22), transparent 58%),
-    radial-gradient(44rem 28rem at 99% -6%, rgba(224, 72, 61, 0.2), transparent 56%),
-    radial-gradient(58rem 42rem at 42% 112%, rgba(74, 168, 224, 0.18), transparent 60%),
-    linear-gradient(165deg, rgba(32, 44, 58, 0.82) 0%, rgba(21, 30, 40, 0.87) 48%, rgba(13, 19, 26, 0.92) 100%);
 }
 
 /* Draft analysis: decisions first, supporting measurements on demand. */

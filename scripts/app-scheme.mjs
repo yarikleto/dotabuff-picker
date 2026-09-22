@@ -1,10 +1,10 @@
 /**
- * Serving the Vite build to the window.
+ * Serving the Vite build to the window scripts/readme-images.mjs renders in.
  *
- * A packaged app cannot just `loadFile("dist/index.html")`: the picker reads
- * its three data files with `fetch`, and Chromium refuses `fetch` over
- * `file://`. So the build is handed out over a custom scheme instead — a real
- * origin, with a working fetch, and without a localhost port or a server.
+ * The window cannot just load `dist/index.html`: the picker reads its data
+ * files with `fetch`, and Chromium refuses `fetch` over `file://`. So the build
+ * is handed out over a custom scheme instead — a real origin, with a working
+ * fetch, and without a localhost port or a server.
  *
  * The path arithmetic lives here, clear of any Electron import, so it can be
  * unit-tested under plain `node --test` like the rest of the pure logic.

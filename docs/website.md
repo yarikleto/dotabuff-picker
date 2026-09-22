@@ -52,9 +52,9 @@ a deploy GitHub's CDN may still answer with the previous version.
 
 `base: "./"` in `vite.config.ts` makes every URL in the build relative —
 `./assets/…`, `./data/matchups.json`, `./heroes/axe.png` — so one build runs at
-`https://OWNER.github.io/REPO/`, at the root of a custom domain, and at
-`app://bundle/` in the [desktop app](desktop.md) without knowing which. There is
-no client-side routing, so there is no `404.html` fallback either.
+`https://OWNER.github.io/REPO/` and at the root of a custom domain without
+knowing which. There is no client-side routing, so there is no `404.html`
+fallback either.
 
 A root-absolute path such as `/data/matchups.json` works under `npm run dev`
 and breaks on Pages, where `/` belongs to `OWNER.github.io` rather than this

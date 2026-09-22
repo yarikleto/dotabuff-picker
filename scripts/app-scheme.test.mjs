@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { contentType, resolveRequest } from "./bundle.mjs";
+import { contentType, resolveRequest } from "./app-scheme.mjs";
 
 const ROOT = path.resolve("/tmp/app/dist");
 const at = (...parts) => path.join(ROOT, ...parts);

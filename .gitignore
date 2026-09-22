@@ -1,6 +1,5 @@
 node_modules
 dist
-release
 scripts/.cache
 tsconfig.tsbuildinfo
 vite.config.ts.timestamp-*

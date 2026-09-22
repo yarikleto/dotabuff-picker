@@ -593,9 +593,8 @@ const canFallBack = () =>
 /**
  * Re-run the collection inside Electron.
  *
- * This costs no new install: Electron is already the devDependency behind
- * `npm run desktop`, and importing the package from Node hands back the path to
- * its Chromium binary rather than the Electron API.
+ * Importing the `electron` package from Node hands back the path to its
+ * Chromium binary rather than the Electron API.
  */
 async function runBrowser() {
   let electronPath;
