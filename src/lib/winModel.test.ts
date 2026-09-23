@@ -10,7 +10,8 @@ import {
   winFeatures,
 } from "./winModel.ts";
 import type { Calibration } from "./winModel.ts";
-import type { Dataset, DraftPick, Hero, MatchupTable, Position, SynergyTable } from "../types.ts";
+import { deriveTimingShape, earlyCoverPenalty, teamCover } from "./timing.ts";
+import type { Dataset, DraftPick, Hero, MatchupTable, Position, SynergyTable, TimingBucket } from "../types.ts";
 
 // Run with: node --test --experimental-strip-types --import ./scripts/register-ts-resolve.mjs src/lib/winModel.test.ts
 
@@ -175,4 +176,60 @@ test("drift names the data files that changed since the fit", () => {
   assert.deepEqual(calibrationDrift(data), [], "matchups is the only input it recorded, and it matches");
   assert.deepEqual(calibrationDrift({ ...data, generatedAt: "2026-09-25T00:00:00.000Z" }), ["matchups"]);
   assert.deepEqual(calibrationDrift(dataset(SOUND)), [], "no calibration, nothing to drift from");
+});
+
+test("an off-seat placement better than the hero's own rate counts as a bonus", () => {
+  // Hero plays position 1 at 50%, but position 2 at 53% (3 points better)
+  const boosted = hero("boost", 50, 1, -3);
+  const data = dataset([boosted]);
+  const f = draftFeatures(data, { mine: [pick("boost", 2)], enemy: [] });
+  assert.equal(f.seatBonus, 3, "position 2 is 3 points better than position 1");
+  assert.equal(f.seatPenalty, 0);
+  assert.deepEqual(f.seatTotal, { mine: 3, theirs: 0 });
+});
+
+test("timing measures early-game cover with nonzero value and correct sign", () => {
+  const TIMING_BUCKETS: TimingBucket[] = [
+    { key: "early", short: "<25", label: "Before 25′", maxSeconds: 1500 },
+    { key: "mid", short: "25–35", label: "25–35′", maxSeconds: 2100 },
+    { key: "late", short: "35–45", label: "35–45′", maxSeconds: 2700 },
+    { key: "veryLate", short: "45+", label: "45′ and up", maxSeconds: null },
+  ];
+  // Our heroes: strongly negative early skews (bad early)
+  const ours = SEATS.map((p) => ({
+    ...hero(`ours${p}`, 50, p),
+    timings: [-5, -2, 1, 4].map((skew) => ({ skew, games: 1000, winRate: 50 + skew })),
+  }));
+  // Enemy heroes: strongly positive early skews (good early)
+  const enemy = SEATS.map((p) => ({
+    ...hero(`enemy${p}`, 50, p),
+    timings: [2, 1, 0, -2].map((skew) => ({ skew, games: 1000, winRate: 50 + skew })),
+  }));
+  const heroes = [...ours, ...enemy];
+  const timingShape = deriveTimingShape(heroes, 4);
+  const data: Dataset = {
+    heroes,
+    bySlug: new Map(heroes.map((h) => [h.slug, h])),
+    matchups: {},
+    synergies: {},
+    generatedAt: "2026-09-19T00:00:00.000Z",
+    hasData: true,
+    hasPositions: true,
+    hasSynergies: false,
+    synergyMatches: 0,
+    hasTimings: true,
+    timingBuckets: TIMING_BUCKETS,
+    timingShape,
+    timingMatches: 1000,
+    error: null,
+  };
+  const myCover = teamCover(ours.map((h) => data.bySlug.get(h.slug)), timingShape);
+  const theirCover = teamCover(enemy.map((h) => data.bySlug.get(h.slug)), timingShape);
+  const f = draftFeatures(data, { mine: seated(ours), enemy: seated(enemy) });
+  const expectedTiming = earlyCoverPenalty(theirCover, 1) - earlyCoverPenalty(myCover, 1);
+  assert.ok(f.timing < 0, "our side short of early cover should make timing negative");
+  assert.ok(Math.abs(f.timing - expectedTiming) < 1e-12, `timing ${f.timing} matches independent calculation ${expectedTiming}`);
+  // Swapping sides should negate timing
+  const g = draftFeatures(data, { mine: seated(enemy), enemy: seated(ours) });
+  assert.ok(Math.abs(g.timing + f.timing) < 1e-12, `swapped timing ${g.timing} negates original ${f.timing}`);
 });
