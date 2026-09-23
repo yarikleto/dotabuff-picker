@@ -25,6 +25,7 @@
     "synergy": "node scripts/synergy.mjs",
     "timings": "node scripts/timings.mjs",
     "lanes": "node scripts/lanes.mjs",
+    "calibrate": "node --experimental-strip-types --no-warnings --import ./scripts/register-ts-resolve.mjs scripts/calibrate.mjs",
     "readme": "node scripts/readme.mjs",
     "readme:images": "npm run build && electron scripts/readme-images.mjs",
     "test": "node --test scripts/*.test.mjs && node --test --experimental-strip-types --import ./scripts/register-ts-resolve.mjs src/lib/*.test.ts"
