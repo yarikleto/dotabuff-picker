@@ -5,6 +5,27 @@ import { allMatchups, buildBriefing } from "./draftInsights.ts";
 import { DEFAULT_SETTINGS } from "./scoring.ts";
 import { deriveTimingShape } from "./timing.ts";
 import type { Dataset, DraftPick, Hero, Position } from "../types.ts";
+import type { Calibration } from "./winModel.ts";
+
+const CALIBRATION: Calibration = {
+  generatedAt: "2026-09-23T00:00:00.000Z",
+  matches: 300_000,
+  matchIdRange: null,
+  tau: 1.5,
+  weights: {
+    matchups: 0.046,
+    cohesion: 0.018,
+    heroes: 0.052,
+    seatPenalty: 0.028,
+    seatBonus: 0.02,
+    roleDeficit: -0.08,
+    timing: 0.01,
+  },
+  range: [0.15, 0.85],
+  inputs: {},
+  holdout: null,
+  reliability: [],
+};
 
 function fixture() {
   const team = (prefix: string): DraftPick[] => Array.from({ length: 5 }, (_, i) => ({ slug: `${prefix}${i + 1}`, position: i + 1 as Position }));
@@ -176,4 +197,25 @@ test("a lane swap updates which matchup cells are marked as lane opponents", () 
   assert.equal(carryMatch(standard).sameLane, false);
   assert.equal(carryMatch(swapped).sameLane, true);
   assert.equal(swapped.filter((p) => p.sameLane).length, 9);
+});
+
+test("a draft whose seats cost the most leads with the roles", () => {
+  const f = fixture();
+  for (const h of f.data.heroes.filter((x) => x.slug.startsWith("ours"))) {
+    h.positions = { 1: 0.02, 2: 0.02, 3: 0.02, 4: 0.02, 5: 0.92 };
+    h.positionWinRate = { 1: 42, 2: 42, 3: 42, 4: 42, 5: 50 };
+  }
+  f.data.calibration = CALIBRATION;
+  const b = buildBriefing(f.analyse());
+  assert.equal(b.title, "Fix the roles first.");
+  assert.match(b.description, /ours1 at 1 \(2\.0% of their games\)/);
+  assert.match(b.description, /points of win chance — more than anything else on the board\.$/);
+  assert.equal(b.insights[0]!.id, "roles");
+  assert.match(b.insights[0]!.evidence, /wins 42\.0% at 1 against 50\.0% overall/);
+});
+
+test("without a calibration the briefing leads as it did", () => {
+  const b = buildBriefing(fixture().analyse());
+  assert.notEqual(b.title, "Fix the roles first.");
+  assert.equal(b.insights.some((i) => i.id === "roles"), false);
 });
