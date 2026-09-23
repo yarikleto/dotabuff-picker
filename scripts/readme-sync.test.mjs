@@ -23,7 +23,7 @@ async function readJson(file) {
  * CI that stops the site from deploying numbers its README does not describe.
  */
 test("README.md describes the data files committed beside it", async () => {
-  const names = ["matchups", "positions", "lanes", "synergies", "timings"];
+  const names = ["matchups", "positions", "lanes", "synergies", "timings", "calibration"];
   const files = Object.fromEntries(
     await Promise.all(names.map(async (name) => [name, await readJson(join(ROOT, "public", "data", `${name}.json`))])),
   );
