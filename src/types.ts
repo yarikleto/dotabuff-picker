@@ -1,4 +1,5 @@
 import type { CounterModel, LaneModel } from "./lib/lanes";
+import type { Calibration } from "./lib/winModel";
 
 export type HeroAttr = "str" | "agi" | "int" | "uni";
 
@@ -304,6 +305,12 @@ export interface Dataset {
   timingShape: TimingShape | null;
   /** How many matches the timing numbers were built from. */
   timingMatches: number;
+  /**
+   * The win-chance model's weights, from public/data/calibration.json — see
+   * `readCalibration`. Null or absent without the file, and the analysis then
+   * falls back to the comparison signal.
+   */
+  calibration?: Calibration | null;
   /** Populated when the dataset failed to load. */
   error: string | null;
 }
