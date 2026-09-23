@@ -61,8 +61,8 @@ The derivation, the weights and the known blind spots are in
 | Counters | Dotabuff | read Sep 19, 2026 | 16,002 hero pairs | — |
 | Positions by rank | STRATZ | Aug 20 – Sep 16, 2026 | 12.8 million ranked matches | 7.41e – 7.41f |
 | Lanes by seat | STRATZ | Aug 20 – Sep 16, 2026 | 53,744 lane pairings | 7.41e – 7.41f |
-| Synergies | OpenDota | Sep 18 – Sep 19, 2026 | 589,508 matches | 7.41f |
-| Game length | OpenDota | Sep 18 – Sep 19, 2026 | 589,324 matches | 7.41f |
+| Synergies | OpenDota | Sep 21 – Sep 22, 2026 | 463,156 matches | 7.41f |
+| Game length | OpenDota | Sep 21 – Sep 22, 2026 | 633,690 matches | 7.41f |
 <!-- data:end -->
 
 **Data patch** is worked out from the windows above against Valve's patch list:
