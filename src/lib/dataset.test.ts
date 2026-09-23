@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { expandSynergies } from "./dataset.ts";
+import { buildDataset, expandSynergies } from "./dataset.ts";
 import { synergy, synergyCell } from "./scoring.ts";
 import type { Dataset } from "../types.ts";
 
@@ -99,4 +99,47 @@ test("a cell the collector omitted falls back to the blended figure", () => {
   assert.equal(synergyCell(4, 5), "ss");
   assert.equal(synergy(data, "ally", "flexer", 4, 5)?.synergy, 1);
   assert.equal(synergy(data, "ally", "flexer", 4, 5)?.matches, 6_000);
+});
+
+const CALIBRATION_FILE = {
+  generatedAt: "2026-09-23T00:00:00.000Z",
+  matches: 300_000,
+  tau: 1.5,
+  weights: {
+    matchups: 0.046,
+    cohesion: 0.018,
+    heroes: 0.052,
+    seatPenalty: 0.028,
+    seatBonus: 0.02,
+    roleDeficit: -0.08,
+    timing: 0.01,
+  },
+  range: [0.15, 0.85],
+};
+
+const files = (calibration?: unknown) =>
+  ({
+    matchupFile: {
+      data: {
+        generatedAt: "2026-09-19T00:00:00.000Z",
+        heroes: [{ slug: "axe", name: "Axe" }],
+        matchups: { axe: { lion: [1, 49, 5000] } },
+      },
+    },
+    synergyFile: { data: null },
+    timingFile: { data: null },
+    positionFile: { data: null },
+    laneFile: { data: null },
+    ...(calibration === undefined ? {} : { calibrationFile: { data: calibration } }),
+  }) as unknown as Parameters<typeof buildDataset>[0];
+
+test("a calibration file is read, and a broken one is not", () => {
+  assert.equal(buildDataset(files(CALIBRATION_FILE)).calibration?.tau, 1.5);
+  assert.equal(buildDataset(files({ ...CALIBRATION_FILE, weights: {} })).calibration, null);
+  assert.equal(buildDataset(files()).calibration, null, "no file, no calibration");
+});
+
+test("the calibration survives a dataset with no matchups", () => {
+  const empty = { ...files(CALIBRATION_FILE), matchupFile: { data: null } } as Parameters<typeof buildDataset>[0];
+  assert.equal(buildDataset(empty).calibration?.matches, 300_000);
 });

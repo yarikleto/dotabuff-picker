@@ -3,6 +3,7 @@ import { buildLaneModel, fitLaneCounters } from "./lanes";
 import { RANK_BANDS, readPositionCells } from "./positions";
 import { estimateMatchupSpread, matchup } from "./scoring";
 import { deriveTimingShape } from "./timing";
+import { readCalibration } from "./winModel";
 import type {
   Dataset,
   Hero,
@@ -124,6 +125,7 @@ export function emptyDataset(error: string | null = null): Dataset {
     timingBuckets: [],
     timingShape: null,
     timingMatches: 0,
+    calibration: null,
     error,
   };
 }
@@ -325,14 +327,16 @@ async function loadJson<T>(
  * degrades to pure counter-picking when that file is absent.
  */
 export async function loadDataset(signal?: AbortSignal): Promise<Dataset> {
-  const [matchupFile, synergyFile, timingFile, positionFile, laneFile] = await Promise.all([
-    loadJson<RawPayload>("data/matchups.json", signal),
-    loadJson<RawSynergyPayload>("data/synergies.json", signal),
-    loadJson<RawTimingPayload>("data/timings.json", signal),
-    loadJson<RawPositionPayload>("data/positions.json", signal),
-    loadJson<RawLanePayload>("data/lanes.json", signal),
-  ]);
-  return buildDataset({ matchupFile, synergyFile, timingFile, positionFile, laneFile });
+  const [matchupFile, synergyFile, timingFile, positionFile, laneFile, calibrationFile] =
+    await Promise.all([
+      loadJson<RawPayload>("data/matchups.json", signal),
+      loadJson<RawSynergyPayload>("data/synergies.json", signal),
+      loadJson<RawTimingPayload>("data/timings.json", signal),
+      loadJson<RawPositionPayload>("data/positions.json", signal),
+      loadJson<RawLanePayload>("data/lanes.json", signal),
+      loadJson<unknown>("data/calibration.json", signal),
+    ]);
+  return buildDataset({ matchupFile, synergyFile, timingFile, positionFile, laneFile, calibrationFile });
 }
 
 /** What `loadDataset` fetched, or what a test or a script read off disk. */
@@ -342,6 +346,8 @@ export interface DataFiles {
   timingFile: { data: RawTimingPayload | null };
   positionFile: { data: RawPositionPayload | null };
   laneFile: { data: RawLanePayload | null };
+  /** The win-chance model's weights. Optional: without it the analysis falls back to the comparison signal. */
+  calibrationFile?: { data: unknown };
 }
 
 /**
@@ -355,8 +361,10 @@ export function buildDataset({
   timingFile,
   positionFile,
   laneFile,
+  calibrationFile,
 }: DataFiles): Dataset {
   const positionPayload = positionFile.data;
+  const calibration = readCalibration(calibrationFile?.data ?? null);
   const laneOutcomes = buildLaneModel(laneFile.data);
   const lanesGeneratedAt = laneOutcomes?.generatedAt ?? null;
 
@@ -376,6 +384,7 @@ export function buildDataset({
     const positionBands = attachPositionCounts(empty.heroes, positionPayload);
     return {
       ...empty,
+      calibration,
       positionBands,
       positionsGeneratedAt: positionBands.length ? (positionPayload?.generatedAt ?? null) : null,
       laneOutcomes,
@@ -438,6 +447,7 @@ export function buildDataset({
     // per candidate would mean 127 passes over it for every keystroke.
     timingShape: timed > 0 ? deriveTimingShape(heroes, timingBuckets.length) : null,
     timingMatches,
+    calibration,
     error: hasData ? null : "Matchup file loaded but contained no rows.",
   };
 }
