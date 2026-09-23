@@ -1,13 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  GROUP_LABEL,
   WIN_FEATURES,
   WIN_MODEL_FLOORS,
   calibrationDrift,
   draftFeatures,
   readCalibration,
   roleDeficit,
+  rolesReason,
+  shapley,
+  showChance,
+  sigmoid,
+  verdictForChance,
   winFeatures,
+  winRead,
 } from "./winModel.ts";
 import type { Calibration } from "./winModel.ts";
 import { deriveTimingShape, earlyCoverPenalty, teamCover } from "./timing.ts";
@@ -232,4 +239,99 @@ test("timing measures early-game cover with nonzero value and correct sign", () 
   // Swapping sides should negate timing
   const g = draftFeatures(data, { mine: seated(enemy), enemy: seated(ours) });
   assert.ok(Math.abs(g.timing + f.timing) < 1e-12, `swapped timing ${g.timing} negates original ${f.timing}`);
+});
+
+// ------------------------------------------------------------------ the read
+
+test("Shapley parts add up to the chance exactly, and a silent group gets nothing", () => {
+  const parts = shapley([-1.8, -0.7, 0, 0.2, 0.05]);
+  const total = parts.reduce((sum, p) => sum + p, 0);
+  assert.ok(Math.abs(total - (100 * sigmoid(-2.25) - 50)) < 1e-9);
+  assert.equal(parts[2], 0);
+  const even = shapley([0.4, 0.4]);
+  assert.ok(Math.abs(even[0]! - even[1]!) < 1e-12, "equal inputs, equal shares");
+});
+
+test("the verdict reads the distance from even", () => {
+  assert.equal(verdictForChance(0.5).label, "Coin flip");
+  assert.equal(verdictForChance(0.53).label, "Coin flip");
+  assert.equal(verdictForChance(0.57).label, "Slight edge to you");
+  assert.equal(verdictForChance(0.38).label, "They are favoured");
+  assert.equal(verdictForChance(0.38).side, "enemy");
+  assert.equal(verdictForChance(0.3).label, "They are well ahead");
+  assert.equal(verdictForChance(0.2).label, "You are being run over");
+  assert.equal(verdictForChance(0.8).label, "Dominant draft");
+});
+
+test("outside the calibrated range the headline gives a bound, not a figure", () => {
+  assert.deepEqual(showChance(0.384, [0.15, 0.85]), { shown: "38%", short: "38%", inRange: true });
+  assert.deepEqual(showChance(0.064, [0.15, 0.85]), { shown: "under 15%", short: "<15%", inRange: false });
+  assert.deepEqual(showChance(0.9, [0.15, 0.85]), { shown: "over 85%", short: ">85%", inRange: false });
+});
+
+test("an empty board is an even game with nothing to explain", () => {
+  const win = winRead(dataset(SOUND), { mine: [], enemy: [] }, CALIBRATION);
+  assert.equal(win.chance, 0.5);
+  assert.ok(win.parts.every((p) => p.points === 0));
+  assert.equal(win.verdict.label, "Coin flip");
+});
+
+test("five cores against a sound five is run over, and the roles say why", () => {
+  const data = dataset([...SOUND, ...CARRIES]);
+  const win = winRead(data, { mine: seated(CARRIES), enemy: seated(SOUND) }, CALIBRATION);
+  // heroes +10 × 0.052, seats −32 × 0.028, deficit (−6.4 + 1.5)² × −0.08
+  const z = 10 * 0.052 - 32 * 0.028 - 0.08 * 4.9 ** 2;
+  assert.ok(Math.abs(win.chance - sigmoid(z)) < 1e-12);
+  assert.equal(win.shown, "under 15%");
+  assert.equal(win.verdict.label, "You are being run over");
+  const roles = win.parts.find((p) => p.group === "roles")!;
+  assert.ok(win.parts.every((p) => p.points >= roles.points), "roles is the largest cost");
+  assert.equal(roles.label, GROUP_LABEL.roles);
+  const sum = win.parts.reduce((s, p) => s + p.points, 0);
+  assert.ok(Math.abs(sum - (win.chance * 100 - 50)) < 1e-9, "the parts add up to the figure");
+  assert.equal(win.evidence, null, "no bin vouches for a figure out of range");
+  assert.equal(
+    rolesReason(win.roles),
+    "Nobody on your side supports: C2 at 2 (2.5% of their games), C3 at 3 (2.5% of their games), " +
+      "C4 at 4 (2.5% of their games), C5 at 5 (2.5% of their games)",
+  );
+});
+
+test("swapping the line-ups gives the other side the rest of the chance", () => {
+  const data = dataset([...SOUND, ...CARRIES], { s1: { c1: row(2) } }, { s1: { s2: pair(1.2) }, s2: { s1: pair(1.2) } });
+  const a = winRead(data, { mine: seated(SOUND), enemy: seated(CARRIES) }, CALIBRATION);
+  const b = winRead(data, { mine: seated(CARRIES), enemy: seated(SOUND) }, CALIBRATION);
+  assert.ok(Math.abs(a.chance + b.chance - 1) < 1e-12);
+});
+
+test("an ordinary flex costs a fraction of a point", () => {
+  // A hero who mids in 26% of their games and wins a point less there.
+  const flex: Hero = {
+    ...hero("flex", 50, 4),
+    positions: { 2: 0.26, 4: 0.6, 5: 0.14 },
+    positionWinRate: { 2: 49, 4: 50, 5: 50 },
+  };
+  const data = dataset([...SOUND, ...ENEMY, flex]);
+  const lineup = [pick("s1", 1), pick("flex", 2), pick("s3", 3), pick("s4", 4), pick("s5", 5)];
+  const win = winRead(data, { mine: lineup, enemy: seated(ENEMY) }, CALIBRATION);
+  const roles = win.parts.find((p) => p.group === "roles")!;
+  assert.ok(Math.abs(roles.points) < 2, `roles moved ${roles.points}`);
+  assert.equal(rolesReason(win.roles), null, "nobody is off-role and no seat costs three points");
+});
+
+test("five supports are told nobody farms, and the enemy's stretch is good news", () => {
+  const supports = ["p1", "p2", "p3", "p4", "p5"].map((slug) => hero(slug, 51, 5));
+  const data = dataset([...supports, ...ENEMY, hero("wanderer", 50, 1)]);
+  const enemy = [pick("e1", 1), pick("e2", 2), pick("e3", 3), pick("wanderer", 4), pick("e5", 5)];
+  const reason = rolesReason(winRead(data, { mine: seated(supports), enemy }, CALIBRATION).roles)!;
+  assert.match(reason, /^Nobody on your side farms: P1 at 1 \(2\.5% of their games\)/);
+  assert.match(reason, /their WANDERER at 4 \(2\.5% of their games\) is off-role$/);
+});
+
+test("inside the range the evidence is the bin the chance falls in", () => {
+  const data = dataset([...SOUND, ...ENEMY], { s1: { e1: row(-3) } });
+  const win = winRead(data, { mine: seated(SOUND), enemy: seated(ENEMY) }, CALIBRATION);
+  // −3 points of matchups: σ(−0.138) ≈ 46.6%.
+  assert.equal(win.shown, "47%");
+  assert.deepEqual(win.evidence, { from: 0.45, to: 0.5, games: 146_917, actual: 0.477 });
 });
