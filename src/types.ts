@@ -452,9 +452,15 @@ export interface Suggestion {
 
 /** What one hypothetical pick does to the whole draft read. */
 export interface DraftImpact {
-  /** Headline advantage before the pick; null when there was nothing to read. */
+  /**
+   * What `before` and `after` are measured in: points of win chance (0–100)
+   * when the dataset carries a calibration, the signed comparison signal
+   * otherwise.
+   */
+  unit: "chance" | "points";
+  /** Headline figure before the pick; null when there was nothing to read. */
   before: number | null;
-  /** Headline advantage with the hero on the board. */
+  /** Headline figure with the hero on the board. */
   after: number;
   /** The lane the pick moves most, when it moves one past the noise floor. */
   lane: { label: string; delta: number; after: number } | null;

@@ -2,6 +2,8 @@ import { lanePair } from "./lanes";
 import { buildBriefing } from "./draftInsights";
 import { POSITION_LABEL, laneForPosition, laneOpponents, positionFit } from "./roles";
 import { NOISE, draftBalance, matchup, sharesLane, synergy } from "./scoring";
+import { rolesReason, winRead } from "./winModel";
+import type { WinGroup, WinRead } from "./winModel";
 import {
   TARGET_EARLY_COVER,
   earlyCoverPenalty,
@@ -364,8 +366,26 @@ export interface DraftVerdict {
   strength: number;
 }
 
+/**
+ * The win chance, with each part's reason in words.
+ *
+ * The model says how much each part moves the chance; this says *why*, from the
+ * same board — the pairing behind the matchups, the pair behind the cohesion,
+ * the hero behind the strength, the seats behind the roles.
+ */
+export interface DraftWin extends WinRead {
+  reasons: Record<WinGroup, string | null>;
+}
+
 export interface DraftAnalysis {
   lineups: { mine: LineupSlot[]; enemy: LineupSlot[] };
+  /**
+   * The headline: the board as a calibrated win chance, from
+   * public/data/calibration.json. Null without that file, and every consumer
+   * then shows `advantage` and `verdict` as before. See docs/scoring.md,
+   * "Win chance".
+   */
+  win: DraftWin | null;
   /** The weighted cohesion contribution, so displayed terms add to the total. */
   cohesionContribution: number;
   /** The headline figure and its two halves, straight from `draftBalance`. */
@@ -625,6 +645,13 @@ const LANING_NOTE = 3;
  * lanes the other four have to change their plan for.
  */
 const LANING_TALK = 5;
+
+/**
+ * Points of win chance the seats have to cost before the roles lead the talking
+ * points: the size of a lost laning stage, and a line the other four have to
+ * change their plan for.
+ */
+const ROLES_TALK = 5;
 
 /**
  * Why a lane reads the way it does, worst first.
@@ -1284,6 +1311,65 @@ export function laneScoreboard(
   return out;
 }
 
+/** Parts smaller than this, in points of win chance, get no reason: there is nothing to explain. */
+const WIN_REASON_FLOOR = 0.5;
+
+/** The reasons behind each part of the win chance, read off the same board. */
+function explainWin(
+  data: Dataset,
+  win: WinRead,
+  board: Pick<DraftAnalysis, "threats" | "edges" | "mySynergyPairs" | "theirSynergyPairs" | "stages" | "lineups">,
+): DraftWin {
+  const part = (group: WinGroup) => win.parts.find((p) => p.group === group)?.points ?? 0;
+  const strongest = (slots: LineupSlot[]) =>
+    slots
+      .map((slot) => ({ slot, winRate: data.bySlug.get(slot.slug)?.winRate }))
+      .filter((x): x is { slot: LineupSlot; winRate: number } => typeof x.winRate === "number")
+      .sort((a, b) => b.winRate - a.winRate)[0];
+
+  const matchups = part("matchups");
+  const threat = board.threats[0];
+  const edge = board.edges[0];
+  const cohesion = part("cohesion");
+  const theirPair = board.theirSynergyPairs.find((p) => p.synergy >= NOISE);
+  const ourPair = board.mySynergyPairs.find((p) => p.synergy >= NOISE);
+  const heroes = part("heroes");
+  const theirBest = strongest(board.lineups.enemy);
+  const ourBest = strongest(board.lineups.mine);
+  const timing = part("timing");
+  const stages = board.stages;
+
+  return {
+    ...win,
+    reasons: {
+      roles: rolesReason(win.roles),
+      matchups:
+        matchups <= -WIN_REASON_FLOOR && threat
+          ? `${threat.theirs.name} beats ${threat.mine.name} by ${Math.abs(threat.advantage).toFixed(1)}`
+          : matchups >= WIN_REASON_FLOOR && edge
+            ? `${edge.mine.name} beats ${edge.theirs.name} by ${edge.advantage.toFixed(1)}`
+            : null,
+      cohesion:
+        cohesion <= -WIN_REASON_FLOOR && theirPair
+          ? `their ${theirPair.a.name} + ${theirPair.b.name} (${signed(theirPair.synergy)})`
+          : cohesion >= WIN_REASON_FLOOR && ourPair
+            ? `our ${ourPair.a.name} + ${ourPair.b.name} (${signed(ourPair.synergy)})`
+            : null,
+      heroes:
+        heroes <= -WIN_REASON_FLOOR && theirBest
+          ? `their ${theirBest.slot.name} wins ${theirBest.winRate.toFixed(1)}% of games`
+          : heroes >= WIN_REASON_FLOOR && ourBest
+            ? `our ${ourBest.slot.name} wins ${ourBest.winRate.toFixed(1)}% of games`
+            : null,
+      timing:
+        Math.abs(timing) >= WIN_REASON_FLOOR && stages?.cover != null
+          ? `heroes who work before the median game: us ${stages.cover.toFixed(1)}, them ` +
+            `${stages.theirCover?.toFixed(1) ?? "unknown"}, of ${TARGET_EARLY_COVER} needed`
+          : null,
+    },
+  };
+}
+
 /**
  * Break a draft down into the parts a player can act on.
  *
@@ -1419,9 +1505,30 @@ export function analyseDraft(
   heroes.sort((a, b) => b.total - a.total);
 
   const byAdvantage = [...pairs].sort((a, b) => a.advantage - b.advantage);
+  // "Pairings that matter" has to mean it. Any sign at all used to qualify,
+  // so a +0.05 pairing could be listed as an edge by the same panel that had
+  // just called half a point a coin flip.
+  const threats = byAdvantage.filter((p) => p.advantage <= -NOISE).slice(0, 5);
+  const edges = byAdvantage.filter((p) => p.advantage >= NOISE).reverse().slice(0, 5);
+  const stages = stageRead(data, draft, settings);
+  const lineups = {
+    mine: draft.mine.map((p) => slot(data, p)),
+    enemy: draft.enemy.map((p) => slot(data, p)),
+  };
+  const win = data.calibration
+    ? explainWin(data, winRead(data, draft, data.calibration), {
+        threats,
+        edges,
+        mySynergyPairs: mineSyn.pairs,
+        theirSynergyPairs: theirSyn.pairs,
+        stages,
+        lineups,
+      })
+    : null;
 
   return {
-    lineups: { mine: draft.mine.map((p) => slot(data, p)), enemy: draft.enemy.map((p) => slot(data, p)) },
+    lineups,
+    win,
     cohesionContribution: settings.synergyWeight * balance.synergyEdge,
     advantage: balance.advantage,
     counter: balance.counter,
@@ -1437,14 +1544,11 @@ export function analyseDraft(
 
     lanes,
     heroes,
-    // "Pairings that matter" has to mean it. Any sign at all used to qualify,
-    // so a +0.05 pairing could be listed as an edge by the same panel that had
-    // just called half a point a coin flip.
-    threats: byAdvantage.filter((p) => p.advantage <= -NOISE).slice(0, 5),
-    edges: byAdvantage.filter((p) => p.advantage >= NOISE).reverse().slice(0, 5),
+    threats,
+    edges,
     mySynergyPairs: mineSyn.pairs,
     theirSynergyPairs: theirSyn.pairs,
-    stages: stageRead(data, draft, settings),
+    stages,
 
     coverage: {
       matchups: pairs.length,
@@ -1471,11 +1575,24 @@ export function toMarkdown(analysis: DraftAnalysis): string {
   const out: string[] = [];
   const pct = (n: number) => signed(n);
 
-  out.push(`**Draft ${pct(analysis.advantage)} — ${analysis.verdict.label.toLowerCase()}**`);
-  out.push(
-    `matchups ${pct(analysis.counter)} · cohesion ${pct(analysis.cohesionContribution)} · early cover ${pct(analysis.earlyEdge)}` +
-      (analysis.complete ? "" : ` · draft in progress (${analysis.sides.mine}v${analysis.sides.enemy})`),
-  );
+  const progress = analysis.complete ? "" : ` · draft in progress (${analysis.sides.mine}v${analysis.sides.enemy})`;
+  if (analysis.win) {
+    const win = analysis.win;
+    out.push(`**Win chance ${win.shown} — ${win.verdict.label.toLowerCase()}**`);
+    out.push(
+      [...win.parts]
+        .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+        .map((p) => `${p.label.toLowerCase()} ${pct(p.points)}`)
+        .join(" · ") + progress,
+    );
+    if (win.reasons.roles) out.push(`Roles: ${win.reasons.roles}`);
+  } else {
+    out.push(`**Draft ${pct(analysis.advantage)} — ${analysis.verdict.label.toLowerCase()}**`);
+    out.push(
+      `matchups ${pct(analysis.counter)} · cohesion ${pct(analysis.cohesionContribution)} · early cover ${pct(analysis.earlyEdge)}` +
+        progress,
+    );
+  }
 
   const briefing = buildBriefing(analysis);
   out.push("", "**Game plan — " + briefing.title + "**", briefing.description);
@@ -1549,6 +1666,12 @@ export function toMarkdown(analysis: DraftAnalysis): string {
       `${analysis.coverage.synergies}/${analysis.coverage.synergiesPossible} pairings had a usable ` +
       `sample. Percentage points of win rate; anything under ${NOISE.toFixed(1)} is noise._`,
   );
+  if (analysis.win) {
+    out.push(
+      `_Win chance from a model calibrated on ${analysis.win.matches.toLocaleString()} ranked games; ` +
+        `each part is points of win chance against an even draft._`,
+    );
+  }
 
   return out.join("\n");
 }
@@ -1613,7 +1736,12 @@ export function pickImpact(
     }
   }
 
-  return { before: before?.advantage ?? null, after: after.advantage, lane };
+  if (data.calibration) {
+    const calibration = data.calibration;
+    const chance = (view: DraftView) => winRead(data, view, calibration).chance * 100;
+    return { unit: "chance", before: before ? chance(draft) : null, after: chance(next), lane };
+  }
+  return { unit: "points", before: before?.advantage ?? null, after: after.advantage, lane };
 }
 
 /** "1 Safe carry" — or just the hero name when no position is booked. */
@@ -1633,6 +1761,15 @@ const signed = (n: number, digits = 1) =>
  */
 export function talkingPoints(analysis: DraftAnalysis): string[] {
   const out: string[] = [];
+  /**
+   * Seats nobody on the side plays, said before anything else: the one line
+   * here that means the draft itself is broken rather than one fight in it,
+   * priced by the same model as the headline.
+   */
+  const roles = analysis.win?.parts.find((p) => p.group === "roles");
+  if (roles && roles.points <= -ROLES_TALK && analysis.win?.reasons.roles) {
+    out.push(`Fix the roles: ${analysis.win.reasons.roles} (${signed(roles.points)} points of win chance)`);
+  }
   const contested = analysis.lanes.filter((l) => l.key !== "map" && l.contested && l.covered);
   // Ranked by the lane read, not the matchup mean: the whole point of the
   // blend is that a lane can be the one we are losing worst while the raw
