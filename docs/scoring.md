@@ -91,16 +91,18 @@ Every feature is mine minus theirs, so swapping the line-ups turns `p` into
 
 The chance is `σ(Σ weight × feature)`. Sums, not means: a pairwise edge is a
 marginal effect, and the combined effect of 25 of them is their sum. Fitted
-freely, the weights on summed matchups and summed hero strength land near 0.04
-per point, which is what an additive log-odds model predicts for an even game.
-The mean was what made the old figure grow calmer as the board filled.
+freely, the weights on summed matchups and summed hero strength land near 0.046
+and 0.054 per point, against the 0.04 an additive log-odds model predicts for
+an even game. The mean was what made the old figure grow calmer as the board
+filled.
 
 The role deficit is the term that sees a line-up rather than five heroes. An
 ordinary flex costs almost nothing — Snapfire mid moves the chance by a fraction
 of a point — while a side whose heroes sit far from their seats loses steeply.
-In real games, teams whose summed position-4 and -5 shares came to under a
-quarter of a hero won 36% (261 team-games), and teams whose seats averaged four
-points or more below their heroes' own records won 25%. In the pilot the convex
+In the pilot's 389,352 games, teams whose summed position-4 and -5 shares came
+to under a quarter of a hero won 36% (261 team-games), and teams whose seats
+averaged four points or more below their heroes' own records won 25%. In the
+pilot the convex
 term brought those tail bins within noise; in the committed calibration its
 weight fitted positive at every threshold and is pinned at zero, so the seat
 penalty's linear weight (0.031 per point, about three times the bonus's 0.011)

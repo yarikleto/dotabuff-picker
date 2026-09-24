@@ -43,12 +43,13 @@ have one, either because the two would never meet in a lane or because the
 table has no row that thick. [How it is measured](scoring.md#counters-by-seat).
 
 The card also answers the question the score raises but cannot settle: **what
-the board becomes if you take them.** `draft −0.4 → +1.9 (+2.3)`, plus the lane
-that pick moves most. A score is an average over pairings, so a hero worth +2
-overall can still be the pick that hands away the safe lane — and a merely
-average hero can be the one that fixes it. Both halves are the same
-`draftBalance` arithmetic the headline uses, run twice, so the preview always
-agrees with the number it is previewing.
+the board becomes if you take them.** With a calibration it is `win chance 38%
+→ 44% (+6)`, plus the lane that pick moves most: the same `winRead` arithmetic
+the headline uses, run twice, so the preview always agrees with the number it
+is previewing. A score is an average over pairings, so a hero worth +2 overall
+can still be the pick that hands away the safe lane — and a merely average hero
+can be the one that fixes it. Without `calibration.json` it falls back to
+`draft −0.4 → +1.9 (+2.3)`, the same `draftBalance` arithmetic instead.
 
 ## Off-role answers
 
@@ -406,11 +407,15 @@ An arrangement earns its place on the list one of three ways:
   and improves past it counts, as long as the whole-board figure does not drop.
 
 Because those lead with *different quantities*, every figure in the panel
-prints the thing it measures underneath itself — `+1.8 board` against
-`+2.3 mid` — and the supporting line carries the rest: `board +0.5 · draft −0.1
-· coin flip · Safe lane +1.2`. The distinction used to be carried by colour
-alone, which explains nothing, is the first thing lost to a cropped screenshot,
-and left a bare amber `+2.5` sitting over a draft that was losing.
+prints the thing it measures underneath itself — `+1.8 win chance` against
+`+2.3 mid` — and the supporting line carries the rest. Calibrated, it names the
+win-chance parts that moved, then the lane read beside them, then what the
+whole board reads at: `roles +3.4 · matchups −0.7 · cohesion −0.1 · heroes +0.2
+· lane read −0.1 · leaves the draft at 19% to win, you are being run over`.
+Without a calibration the line falls back to three parts instead: `draft +0.5
+· lanes −0.1 · seats +1.2`. The distinction used to be carried by colour alone,
+which explains nothing, is the first thing lost to a cropped screenshot, and
+left a bare amber `+2.5` sitting over a draft that was losing.
 
 Three things then keep the list honest:
 
