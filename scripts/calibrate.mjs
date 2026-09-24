@@ -5,8 +5,14 @@
  *
  *   npm run calibrate                      # ~300k ranked games older than the synergy and timing samples
  *   npm run calibrate -- --matches=500000  # a bigger sample
+ *   npm run calibrate -- --window=400000   # starting id window
+ *   npm run calibrate -- --delay=1500      # ms between requests
+ *   npm run calibrate -- --timeout=120000  # ms per request
+ *   npm run calibrate -- --key=…           # OpenDota API key (OPENDOTA_API_KEY also works)
  *   npm run calibrate -- --fresh           # ignore the cached line-ups
  *   npm run calibrate -- --dry-run         # fit and report, write nothing
+ *
+ * A reused cache can hold more games than --matches and all of them are used.
  *
  * The features come from src/lib/winModel.ts — the arithmetic the app runs — so
  * this script needs the TypeScript loader, which `npm run calibrate` supplies.

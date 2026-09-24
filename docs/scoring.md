@@ -177,7 +177,7 @@ Out of fold, drafts rated 18% won 19.8%, 23% won 23.8%, 28% won 27.6%, 33% won
 Positions in calibration are inferred from each line-up, where the board books
 them; the weights are fitted at all ranks and applied to whichever band is on
 screen; the games are public pubs; and the model sees pairs and seats, not
-trios. Each is a reason the figure is a chance rather than a certainty.
+trios. Each is a reason the figure is a chance rather than a certainty. The calibration games are only guaranteed older than the synergy and timing samples; hero win rates, seat records and matchups come from windows that may include them after a refresh, a small in-sample effect.
 
 ## Early game
 
