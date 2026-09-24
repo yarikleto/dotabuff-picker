@@ -61,7 +61,18 @@ async function until(win, expression, what, ms = 30_000) {
   throw new Error(`timed out waiting for ${what}`);
 }
 
-const IMAGES_DONE = "[...document.images].every((img) => img.complete)";
+/**
+ * Every image the shutter will see has loaded. Only those on screen count: the
+ * portraits are `loading="lazy"`, and one further below the fold than
+ * Chromium's lazy-load margin (1250px on a "4g" connection) is never fetched,
+ * so it stays incomplete for good — how tall the grid runs depends on the
+ * platform's scrollbars and fonts.
+ */
+const IMAGES_DONE = `[...document.images].every((img) => {
+  const box = img.getBoundingClientRect();
+  const offScreen = box.top >= innerHeight || box.bottom <= 0 || box.left >= innerWidth || box.right <= 0;
+  return offScreen || img.complete;
+})`;
 
 /**
  * Loads `url` and then switches the page to SCALE. The override has to follow
@@ -86,12 +97,24 @@ async function openAt(ses, url, width, height) {
   return win;
 }
 
-/** JPEG: portraits are photographs, and PNG makes both images several megabytes. */
+/**
+ * JPEG: portraits are photographs, and PNG makes both images several megabytes.
+ *
+ * On Windows a window that was never shown produces no frames, and
+ * `Page.captureScreenshot` waits for one forever. A frame subscription counts
+ * as a capturer, which keeps the hidden page painting for as long as it runs.
+ */
 async function capture(win, name) {
-  const { data } = await win.webContents.debugger.sendCommand("Page.captureScreenshot", {
-    format: "jpeg",
-    quality: 88,
-  });
+  win.webContents.beginFrameSubscription(() => {});
+  let data;
+  try {
+    ({ data } = await win.webContents.debugger.sendCommand("Page.captureScreenshot", {
+      format: "jpeg",
+      quality: 88,
+    }));
+  } finally {
+    win.webContents.endFrameSubscription();
+  }
   const file = path.join(OUT, name);
   await writeFile(file, Buffer.from(data, "base64"));
   const kb = Math.round((await stat(file)).size / 1024);
