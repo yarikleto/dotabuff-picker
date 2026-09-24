@@ -214,6 +214,28 @@ test("a draft whose seats cost the most leads with the roles", () => {
   assert.match(b.insights[0]!.evidence, /wins 42\.0% at 1 against 50\.0% overall/);
 });
 
+test("a well-seated draft that still prices its seats gets a neutral roles insight", () => {
+  const f = fixture();
+  // Every hero is mostly on the seat it is booked at (well above the 5% share
+  // that would call it off-role), but wins a couple of points less there than
+  // it does overall — a seat can be negative without anyone being out of
+  // position. No seat's delta reaches the -3 that rolesReason also accepts.
+  for (const p of f.draft.mine) {
+    const h = f.data.bySlug.get(p.slug)!;
+    h.positions = { 1: 0.1, 2: 0.1, 3: 0.1, 4: 0.1, 5: 0.1 };
+    h.positions[p.position!] = 0.6;
+    h.positionWinRate = { 1: 50, 2: 50, 3: 50, 4: 50, 5: 50 };
+    h.positionWinRate[p.position!] = 48;
+  }
+  f.data.calibration = CALIBRATION;
+  const b = buildBriefing(f.analyse());
+  const roles = b.insights.find((i) => i.id === "roles");
+  assert.ok(roles);
+  assert.equal(roles!.title, "Your seats are costing you");
+  assert.doesNotMatch(roles!.title, /out of position/);
+  assert.doesNotMatch(roles!.action, /Rebalance/);
+});
+
 test("without a calibration the briefing leads as it did", () => {
   const b = buildBriefing(fixture().analyse());
   assert.notEqual(b.title, "Fix the roles first.");

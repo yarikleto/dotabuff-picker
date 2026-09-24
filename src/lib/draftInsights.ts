@@ -1,4 +1,5 @@
 import { NOISE, formatSigned } from "./scoring";
+import { ROLE_REASON_SHARE } from "./winModel";
 import type { DraftAnalysis, LaneReport, LineupSlot, PairEdge, StageReport } from "./analysis";
 
 export interface DraftInsight {
@@ -76,7 +77,7 @@ export function buildBriefing(a: DraftAnalysis): DraftBriefing {
   let title = "Find your edge. Make a plan.";
   let description = "Use the individual matchups to choose your fights; the draft score alone cannot tell you how to play.";
   if (rolesLead && roles) {
-    const reason = a.win?.reasons.roles ?? "Your heroes are booked into seats they rarely play";
+    const reason = a.win?.reasons.roles ?? "Your seats cost more than anything else on the board";
     title = "Fix the roles first.";
     description =
       `${reason}. That costs about ${Math.round(-roles.points)} points of win chance — ` +
@@ -105,14 +106,23 @@ export function buildBriefing(a: DraftAnalysis): DraftBriefing {
 
   if (roles && roles.points <= -ROLES_INSIGHT && a.win) {
     const worst = [...a.win.roles.mine.seats].sort((x, y) => x.delta - y.delta)[0];
+    // Off-role means genuinely off their best seats: a rare seat for the hero,
+    // or a seat that costs a lot even for a hero who plays it often. The same
+    // test rolesReason uses. A seat can be negative without either being true.
+    const offRole =
+      !!worst && ((worst.share !== null && worst.share < ROLE_REASON_SHARE) || worst.delta <= -3);
     insights.push({
       id: "roles",
       kind: "roles",
       tone: "bad",
       label: "ROLES",
-      title: worst?.position ? `${worst.name} is out of position at ${worst.position}` : "Your seats are costing you",
-      action:
-        "Open Rebalance for seatings they actually play. If nobody can move, expect that seat to lose more of its games and plan support around it.",
+      title:
+        offRole && worst?.position
+          ? `${worst.name} is out of position at ${worst.position}`
+          : "Your seats are costing you",
+      action: offRole
+        ? "Open Rebalance for seatings they actually play. If nobody can move, expect that seat to lose more of its games and plan support around it."
+        : "Some of your heroes win less in these seats than they do overall; the Roles card in Deep dive shows which.",
       evidence:
         (worst && worst.seatWinRate !== null && worst.winRate !== null
           ? `${worst.name} wins ${worst.seatWinRate.toFixed(1)}% at ${worst.position} against ${worst.winRate.toFixed(1)}% overall. `
