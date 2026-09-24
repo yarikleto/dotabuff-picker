@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MAX_SEAT_COST, arrangementId, rebalance, rebalanceReadiness, scoreArrangement } from "./rebalance.ts";
+import {
+  CHANCE_GAIN,
+  MAX_SEAT_COST,
+  arrangementId,
+  rebalance,
+  rebalanceReadiness,
+  scoreArrangement,
+} from "./rebalance.ts";
+import type { Calibration } from "./winModel.ts";
 import { buttonLabel, costOf, describeOption, headlineFor } from "./rebalanceCopy.ts";
 import { laneScoreboard } from "./analysis.ts";
 import { POSITIONS } from "./roles.ts";
@@ -817,4 +825,58 @@ test("a seat reading moves what an arrangement is worth", () => {
       advantage(data, board) - advantage(data, swap),
     "the seat reading is an argument for leaving beta where he is",
   );
+});
+
+// ---------------------------------------------------------------- win chance
+
+const CALIBRATION: Calibration = {
+  generatedAt: "2026-09-23T00:00:00.000Z",
+  matches: 300_000,
+  matchIdRange: null,
+  tau: 1.5,
+  weights: {
+    matchups: 0.046,
+    cohesion: 0.018,
+    heroes: 0.052,
+    seatPenalty: 0.028,
+    seatBonus: 0.02,
+    roleDeficit: -0.08,
+    timing: 0.01,
+  },
+  range: [0.15, 0.85],
+  inputs: {},
+  holdout: null,
+  reliability: [],
+};
+
+test("with a calibration an arrangement is scored by its win chance", () => {
+  const calibrated: Dataset = { ...makeDataset(), calibration: CALIBRATION };
+  const score = scoreArrangement(calibrated, draft, settings, { picks: draft.mine, lanePlan: "standard" });
+  assert.ok(score.chance !== null && score.chance > 0 && score.chance < 100);
+  assert.equal(score.total, score.chance);
+  const plain = scoreArrangement(data, draft, settings, { picks: draft.mine, lanePlan: "standard" });
+  assert.equal(plain.chance, null, "without one it is the objective it always was");
+  assert.ok(Math.abs(plain.total - (plain.advantage + plain.fit + plain.lanes)) < 1e-12);
+});
+
+test("a lane swap leaves the win chance where it was", () => {
+  const calibrated: Dataset = { ...makeDataset(), calibration: CALIBRATION };
+  const standard = scoreArrangement(calibrated, draft, settings, { picks: draft.mine, lanePlan: "standard" });
+  const swapped = scoreArrangement(calibrated, draft, settings, { picks: draft.mine, lanePlan: "swapped" });
+  assert.equal(swapped.chance, standard.chance);
+});
+
+test("a stranded carry is put back, and the gain is counted in points of win chance", () => {
+  const calibrated: Dataset = { ...makeDataset(), calibration: CALIBRATION };
+  const stranded: DraftView = {
+    ...draft,
+    mine: [pick("alpha", 2), pick("beta", 3), pick("carry", 4), pick("sup4", 1), pick("sup5", 5)],
+  };
+  const report = rebalance(calibrated, stranded, settings)!;
+  assert.ok(report.current.chance! < 50, `the board reads ${report.current.chance}`);
+  assert.equal(report.threshold, CHANCE_GAIN);
+  assert.equal(report.best?.reason, "seat");
+  assert.ok(report.best!.gain.total > 5, `putting them back is worth ${report.best!.gain.total}`);
+  assert.equal(report.best!.gain.total, report.best!.gain.chance);
+  assert.equal(headlineFor(report.best!).unit, "win chance");
 });

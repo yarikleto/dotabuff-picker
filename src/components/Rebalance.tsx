@@ -3,7 +3,14 @@ import { HeroPortrait } from "./HeroPortrait";
 import { useSheetFocus } from "./useSheetFocus";
 import { POSITION_LABEL } from "../lib/roles";
 import { formatSigned } from "../lib/scoring";
-import { breakdownOf, costOf, describeOption, headlineFor } from "../lib/rebalanceCopy";
+import {
+  boardFigure,
+  breakdownOf,
+  costOf,
+  describeOption,
+  headlineFor,
+  thresholdText,
+} from "../lib/rebalanceCopy";
 import type { RebalanceOption, RebalanceReport } from "../lib/rebalance";
 import type { Hero, LanePlan, Position } from "../types";
 
@@ -119,7 +126,7 @@ function Option({
           <span title="The two terms behind the figure on the left: what the arrangement does to the draft number, and what it does to how well your five suit their seats.">
             {breakdownOf(option)}
           </span>
-          {` · leaves the draft at ${formatSigned(option.score.advantage, 1)}, ${option.verdict.toLowerCase()}`}
+          {` · leaves the draft at ${boardFigure(option.score)}, ${option.verdict.toLowerCase()}`}
           {/* The repaired lane is already the headline figure; the rest are the cost. */}
           {option.laneShifts
             .filter((shift) => shift.key !== option.repairedLane?.key)
@@ -249,9 +256,8 @@ export function Rebalance({
           <div className="sheet-title">
             <h2 id="rebalance-title">Rebalance</h2>
             <p className="muted">
-              {`Same five heroes, different seats. The draft reads ${formatSigned(
-                report.current.advantage,
-                1,
+              {`Same five heroes, different seats. The draft reads ${boardFigure(
+                report.current,
               )} — ${report.currentVerdict.toLowerCase()}.`}
               {losing.length > 0 && (
                 <span className="bad">
@@ -398,7 +404,7 @@ export function Rebalance({
           <p className="empty">
             {report.pinned
               ? "Every hero is pinned to the one position they play often enough for your role threshold — the deployment was the only thing on the table."
-              : `No arrangement beats the board by more than ${report.threshold.toFixed(1)} points, and no lane you are losing is fixed by moving anyone.`}
+              : `No arrangement beats the board by more than ${thresholdText(report)}, and no lane you are losing is fixed by moving anyone.`}
           </p>
         )}
 
