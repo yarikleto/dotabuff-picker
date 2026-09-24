@@ -83,6 +83,7 @@ replaces any browser-driven Dotabuff scraping skill.
      version) is normal. Orange right after a major patch is expected, see
      below. Red means the data predates the latest patch: something did not
      refresh.
+   - After a run that included `calibrate`, re-read the figures quoted in docs/scoring.md "Win chance" and README's Win chance bullet against public/data/calibration.json and update them.
 5. **Check new heroes.** When `git diff src/data/heroes.ts` shows an entry, its
    slug should be the hero's name the way Dotabuff writes it in
    `dotabuff.com/heroes/<slug>` (lowercase, hyphenated), and

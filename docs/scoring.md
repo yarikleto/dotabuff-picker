@@ -101,7 +101,7 @@ ordinary flex costs almost nothing — Snapfire mid moves the chance by a fracti
 of a point — while a side whose heroes sit far from their seats loses steeply.
 In the pilot's 389,352 games, teams whose summed position-4 and -5 shares came
 to under a quarter of a hero won 36% (261 team-games), and teams whose seats
-averaged four points or more below their heroes' own records won 25%. In the
+averaged four points or more below their heroes' own records won 25% (8 team-games). In the
 pilot the convex
 term brought those tail bins within noise; in the committed calibration its
 weight fitted positive at every threshold and is pinned at zero, so the seat
@@ -142,7 +142,7 @@ would no longer be the calibrated one. The sliders tune the pick list.
   alone, when any bin of 1,000 or more team-games misses by more than 3 points,
   or when a weight that can only be positive is not.
 
-The committed calibration: 418,183 games, τ = 0.5 — a tie across the six
+At the time of writing, the committed calibration: 418,183 games, τ = 0.5 — a tie across the six
 thresholds tried, since the deficit weight fits positive and is pinned at zero
 whichever one is picked — held-out log-loss 0.6712 against 0.6914 for the
 Radiant term alone, AUC 0.61, figures shown between 15% and 85%. Out of fold,

@@ -51,7 +51,7 @@ hero the enemy most wants next. It runs in the browser, with nothing to install.
 - **Win chance** — the board as one calibrated figure: a model whose weights are
   fitted on real ranked games at every refresh, so a 38% means drafts like it
   won about 38% of the time. Five cores and no supports reads 16% — you are
-  being run over.
+  being run over (calibration of Sep 23, 2026).
 
 Every figure is damped by its own sample size before it counts for anything.
 The derivation, the weights and the known blind spots are in
