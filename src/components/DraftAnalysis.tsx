@@ -662,7 +662,7 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
           {!analysis.win && (
             <span
               className="tag tag-warn"
-              title="public/data/calibration.json is missing or unreadable, so the headline is a comparison signal between the two line-ups rather than a win chance. `npm run calibrate` builds it."
+              title="public/data/calibration.json is missing or unreadable, so the headline is a comparison signal between the two line-ups rather than a win chance. `npm run refresh -- --steps=calibrate` builds it."
             >
               uncalibrated
             </span>
@@ -670,7 +670,7 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
           {analysis.win && drift.length > 0 && (
             <span
               className="tag tag-warn"
-              title={`The win-chance weights were fitted against different ${drift.join(", ")} files from the ones loaded now. \`npm run calibrate\` refits them.`}
+              title={`The win-chance weights were fitted against different ${drift.join(", ")} files from the ones loaded now. \`npm run refresh -- --steps=calibrate\` refits them.`}
             >
               calibration predates data
             </span>
