@@ -48,6 +48,10 @@ hero the enemy most wants next. It runs in the browser, with nothing to install.
   what they most want next.
 - **Rebalance** — the same five heroes in better seats, when a reshuffle beats a
   new pick.
+- **Win chance** — the board as one calibrated figure: a model whose weights are
+  fitted on real ranked games at every refresh, so a 38% means drafts like it
+  won about 38% of the time. Five cores and no supports reads 16% — you are
+  being run over.
 
 Every figure is damped by its own sample size before it counts for anything.
 The derivation, the weights and the known blind spots are in
@@ -89,7 +93,7 @@ matchup pages, so counters carry no patch of their own.
 | Hover the **i** on a tile | Opens the full breakdown for that hero |
 | Click a face under **Countered by** | Bans that counter |
 | Click a face under **Best with** | Adds that hero to your team |
-| **Draft analysis** in the top bar | The game plan, matchup map and full breakdown of the draft on the board |
+| **Draft analysis** in the top bar | The win chance, the game plan, the matchup map and the full breakdown of the draft on the board |
 | **Rebalance** in the top bar | The same five heroes in better seats, when there are any |
 
 Your picks are green, the enemy's are red, bans are greyed out and crossed

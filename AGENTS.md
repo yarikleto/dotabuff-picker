@@ -12,6 +12,7 @@ npm run dev             # http://localhost:5180
 npm test                # scripts/ and src/lib/ under node --test
 npm run build           # typecheck + production bundle into dist/
 npm run refresh         # recollect every data set, then the README blocks
+npm run calibrate       # refit the win-chance model alone (refresh runs it)
 npm run readme          # the README blocks alone, from public/data/
 npm run readme:images   # re-render docs/assets/banner.jpg and screenshot.jpg
 ```

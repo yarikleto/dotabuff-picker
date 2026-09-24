@@ -45,7 +45,8 @@ replaces any browser-driven Dotabuff scraping skill.
    that is not data stays out of the data commit.
 2. **Collect.** `npm run refresh`. The steps run in order — `roster`,
    `counters` (Dotabuff), `positions` (STRATZ), `synergies` and `timings`
-   (OpenDota), `lanes` (STRATZ), `portraits`, `readme` — each in its own
+   (OpenDota), `lanes` (STRATZ), `portraits`, `calibrate` (the win-chance
+   model, fitted on OpenDota games), `readme` — each in its own
    process, and one failing does not stop the rest. The OpenDota passes are the
    slow ones: give the command a long timeout, or run it in the background and
    wait for it to exit. Tell the user a Cloudflare window may appear for them.
@@ -61,6 +62,9 @@ replaces any browser-driven Dotabuff scraping skill.
      was fetched is cached.
    - OpenDota timeouts or rate limits → retry within a day; the pass resumes
      from `scripts/.cache/*-progress.json`.
+   - `calibrate` "failed its checks" → it names the check and leaves the old
+     `calibration.json`; retry once the OpenDota steps are `ok`, and never edit
+     the file or loosen a guardrail to get past it.
    - `readme` could not reach Valve or OpenDota → retry `npm run readme` later.
      Until then the README says "unknown" where the lookup failed.
 4. **Verify against the files, not the summary.** Quote these figures in the

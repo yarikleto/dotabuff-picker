@@ -58,6 +58,125 @@ carries by how stereotyped they are.
 With an empty draft both lists fall back to meta strength, which is what you
 want for a first-phase ban.
 
+## Win chance
+
+The Draft analysis headline is a chance of winning, and it is calibrated: a
+model over a handful of draft features whose weights are fitted on real ranked
+games and whose predictions are checked on games it was not fitted on. The
+arithmetic is `src/lib/winModel.ts`; the fit is `npm run calibrate`, the last
+data step of every refresh; its output is `public/data/calibration.json`.
+
+It replaced a comparison signal — the lane-weighted mean matchup, plus the
+synergy difference, plus the early-cover term — that could see neither roles
+nor hero strength. The draft that retired it: Anti-Mage, Meepo, Sven,
+Lifestealer and Arc Warden, five cores, against Leshrac, Lina, Enigma, Bounty
+Hunter and Earthshaker. It read **−1.47, "Slight edge to them"**. Lifestealer at
+4 wins 39.6% of his games there and Arc Warden at 5 45.3%, and nothing in the
+headline knew. The calibrated model puts it at 16%, *You are being run over*,
+with the seats the largest part of the deficit.
+
+### The features
+
+Every feature is mine minus theirs, so swapping the line-ups turns `p` into
+`1 − p` exactly.
+
+| Feature | What it adds up |
+| --- | --- |
+| Matchups | every cross pairing's damped Dotabuff advantage, pairs with ≥ 200 matches |
+| Cohesion | each side's pair synergies with the core/support cells as booked, pairs with ≥ 200 games |
+| Heroes | each hero's win rate − 50, in the rank band on screen |
+| Seat penalty, seat bonus | each hero's `positionWinRate` at the booked seat minus their own win rate, split by sign |
+| Role deficit | `min(0, S/5 + τ)²` per side, `S` the side's summed seat deltas |
+| Timing | the early-cover shortfall, theirs minus mine |
+
+The chance is `σ(Σ weight × feature)`. Sums, not means: a pairwise edge is a
+marginal effect, and the combined effect of 25 of them is their sum. Fitted
+freely, the weights on summed matchups and summed hero strength land near 0.04
+per point, which is what an additive log-odds model predicts for an even game.
+The mean was what made the old figure grow calmer as the board filled.
+
+The role deficit is the term that sees a line-up rather than five heroes. An
+ordinary flex costs almost nothing — Snapfire mid moves the chance by a fraction
+of a point — while a side whose heroes sit far from their seats loses steeply.
+In real games, teams whose summed position-4 and -5 shares came to under a
+quarter of a hero won 36% (261 team-games), and teams whose seats averaged four
+points or more below their heroes' own records won 25%. In the pilot the convex
+term brought those tail bins within noise; in the committed calibration its
+weight fitted positive at every threshold and is pinned at zero, so the seat
+penalty's linear weight (0.031 per point, about three times the bonus's 0.011)
+carries the whole off-role cost — and the five-cores draft still reads 16%.
+Each refresh re-fits it; the term is kept so a fit that finds a convex cost can
+use it.
+
+Seat bonuses are weighted apart from seat penalties because STRATZ files
+positions partly by outcome: a Leshrac who ends the game richest is a pos 1
+Leshrac, so rare seats' win rates carry some of the result. Fitted separately, a
+point of bonus is worth about a third of a point of penalty in the committed fit
+(0.011 against 0.031); in the pilot, bonuses from seats under 15% of a hero's
+games were worth no less than the rest.
+
+The Tuning sliders do not move the chance. The weights were fitted under fixed
+sample floors (`WIN_MODEL_FLOORS`), and a probability computed under others
+would no longer be the calibrated one. The sliders tune the pick list.
+
+### The calibration
+
+- **Games.** Ranked All Pick from OpenDota's `public_matches`, strictly older
+  than both the synergy and the timing samples (their `matchIdRange`), so no
+  weight is fitted on the games those figures were measured on. 300,000 by
+  default.
+- **Positions** for each line-up come from `scripts/assign.mjs`, as in the
+  synergy collector.
+- **Fit.** τ is chosen from 0.5 to 3 by two-fold held-out log-loss, folds by
+  match id parity; the weights are then fitted on every game by logistic
+  regression, with a Radiant term the app leaves out. A role-deficit weight that
+  fits positive is pinned at zero.
+- **Reliability.** Out of fold and read from both seats, in 5-point bins. The
+  headline prints a figure only inside the span of bins holding at least 200
+  team-games and says "under 15%" or "over 85%" beyond it, with the model's own
+  figure beside.
+- **Guardrails.** The step writes nothing when the sample is under 100,000
+  games, when the held-out log-loss is not at least 0.005 below the Radiant term
+  alone, when any bin of 1,000 or more team-games misses by more than 3 points,
+  or when a weight that can only be positive is not.
+
+The committed calibration: 418,183 games, τ = 0.5 — a tie across the six
+thresholds tried, since the deficit weight fits positive and is pinned at zero
+whichever one is picked — held-out log-loss 0.6712 against 0.6914 for the
+Radiant term alone, AUC 0.61, figures shown between 15% and 85%. Out of fold,
+drafts near 23.2% won 22.0% of theirs (3,218 team-games), near 32.9% won 33.2%
+(39,061), and near 42.6% won 42.6% (125,854).
+
+The breakdown under the headline gives each group — roles, matchups, cohesion,
+heroes, timing — its exact Shapley value in points of win chance, so the parts
+add up to the headline minus 50 with nothing left over.
+
+### What was tried and left out
+
+Measured on the pilot, 389,352 games from 2026-09-22 scored against the data
+committed at `318fd00`:
+
+- **Doubling lane pairings.** A lane pairing is worth 1.06 of a pairing across
+  the map (0.0475 against 0.0447 per point), not two.
+- **The seat counters inside the matchup sum.** Read from one side only, they
+  made the held-out fit worse (0.67237 against 0.67187).
+- **The lane cards' readings.** Laning game edge 0.0017 ± 0.0028, form −0.0002 ±
+  0.0018, duo −0.0060 ± 0.0035. The cards still print all three; they do not
+  move the verdict.
+- **A count of support bodies.** Once the seat terms are in, it adds nothing.
+
+The pilot's held-out log-loss was 0.69145 with the Radiant term alone, 0.68656
+for the old headline and 0.67188 for this model; AUC 0.557 against about 0.61.
+Out of fold, drafts rated 18% won 19.8%, 23% won 23.8%, 28% won 27.6%, 33% won
+32.9% and 38% won 37.8%: a recalibration slope of 0.997.
+
+### What it does not know
+
+Positions in calibration are inferred from each line-up, where the board books
+them; the weights are fitted at all ranks and applied to whichever band is on
+screen; the games are public pubs; and the model sees pairs and seats, not
+trios. Each is a reason the figure is a chance rather than a certainty.
+
 ## Early game
 
 Every term above judges a hero. None of them can see that the four heroes
@@ -126,6 +245,16 @@ that dominates early is itself part of why games end early. Correcting the
 second would need per-draft durations, which the table does not carry. The bias
 it leaves runs against late-heavy drafts being flattered, which is the safe
 direction for a figure whose whole job is to warn about them.
+
+**What the calibration says.** The win-chance model carries the early-cover
+shortfall as a feature and fits its weight like any other. In the pilot it came
+out indistinguishable from zero (0.015 ± 0.026) — in 389,352 real games a
+missing first half did not predict losses — and the draft above, Phantom
+Lancer, Ancient Apparition, Arc Warden, Silencer and Axe, read about 72%. In the
+committed calibration the term carries a real weight, 0.116 ± 0.035 per unit of
+shortfall, and that draft still reads about 72% under it: its 25 matchups add
+up to a lot. The penalty stays in the pick score, where it orders candidates,
+and every calibration re-measures its weight in the verdict.
 
 Each pairing is read from both heroes' pages and averaged, which cancels most of
 the rounding noise. Matchups with fewer games than the **Min. sample** slider
@@ -487,62 +616,28 @@ to spend a ban on.
 
 ## Scoring an arrangement
 
-The [Rebalance](ui.md#rebalancing-your-five) search ranks whole line-ups rather than
-candidates, so it needs a figure for "what is this board worth arranged *this*
-way". It is the draft score plus the part of a hero's value that depends on
-where you put them:
+The [Rebalance](ui.md#rebalancing-your-five) search ranks whole line-ups rather
+than candidates, so it needs a figure for "what is this board worth arranged
+*this* way". With a calibration it is the win chance of the board so arranged:
+the same `winRead` the headline uses. Seat penalties, seat bonuses and the role
+deficit are inside it, so where a hero sits is priced by the model that was
+fitted on how seats actually go.
 
-```
-total = draftBalance(board arranged this way).advantage          ← draft
-      + mean over the contested lanes of ( laning, form, duo )   ← lanes
-      + mean over my heroes of ( metaWeight × (positionWinRate − 50) ) ← seats
-```
+Nothing lane-shaped is in the model — the lane readings measured nothing on real
+games — so a lane swap leaves the chance where it was. The panel still reads
+every lane: an arrangement that takes a losing lane out of the fire while
+costing less than a point of win chance is offered for that lane, and every
+option prints the lane shifts under it.
 
-**draft** is the headline number on the Draft analysis button — matchups,
-cohesion and timing — recomputed with the heroes in their new seats. It moves because the
-lane weighting moves: a pairing that used to count double now counts once, and
-one that did not now does.
+An arrangement is offered on its figure when it adds at least one point of win
+chance (`CHANCE_GAIN`); one that puts a stranded hero back on a seat they play
+may cost up to two (`MAX_SEAT_COST`). Gains print as points of win chance with
+the parts that moved.
 
-**lanes** is what the laning stage is worth, and it is the term this search
-exists for. Seating and deployment are the only things a locked draft can still
-change about the laning stage, and until this existed the objective could not
-see the laning stage at all: `draft` is measured over whole games and is silent
-about *when* within one it applies, and `seats` is about a hero's record in a
-role rather than on a patch of ground. It is the [lane cards'](ui.md#reading-the-draft)
-own reading — what the pairings standing in each lane are worth through the
-lane ([Lane outcomes](#lane-outcomes)), each side's win rate from the lane they
-are physically standing in, and how the two heroes on each side work together —
-with the whole-game matchup term left out, because `draft` has already summed
-every pairing on the board and at double weight where the two heroes meet in a
-lane. The laning part does not bring that pairing back in by another route:
-across 33,052 lane pairings, a pairing's laning worth correlates 0.22 with
-Dotabuff's whole-game advantage for the same two heroes, so it is mostly what
-the matchup table does not carry. Averaged over the lanes that are contested
-*and* measured, so a scrape with no lane rows leaves the term at zero.
-
-What stood here before was a hand-rolled quarter of it, called `laneShift`: the
-gap between one hero's offlane and safe-lane records, charged only when the
-deployment changed. One side of one lane, no enemy in it, no duo, and silent
-under the standard plan — where seating decides the laning stage every bit as
-much. The full read is not meaningfully more expensive (the search went from
-0.65 ms to 1.4 ms on a real board) because it replaces a *second* lane read the
-search was already buying to explain its own answers; both now come from one
-evaluation, so the figure on a card and the lane shifts under it cannot disagree.
-
-**seats** is what a hero is worth in a position, and it is deliberately the same
-recipe `evaluate` uses to rank a candidate for one, with the same constants. So
-"Earth Spirit is a 4" means the same thing in the pick list and in the reshuffle
-panel, and neither can be tuned into disagreeing with the other. A mean rather
-than a sum so it stays in the same units as the other two.
-
-An arrangement is offered when its `total` beats the board's by more than the
-[noise floor](ui.md#reading-the-draft) — or when it rescues a losing lane, or
-when it takes a hero out of a position they do not play, which is the one case
-allowed to cost score. Note the gain is in this mixed currency and not in
-headline points: a `+1.4` can come from matchups, from winning a lane, from
-heroes ending up in positions they play more often, or from all three. The panel
-prints all three parts beside every option, plus the resulting headline figure
-and verdict, so the split is always visible.
+Without `calibration.json` the search keeps the objective it had before: the
+comparison signal, plus the lane cards' laning, form and duo readings averaged
+over the contested lanes, plus each hero's seat record at the meta weight, with
+the half-point noise floor as its threshold.
 
 ## Where positions come from
 
