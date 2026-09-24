@@ -1,7 +1,8 @@
 # Refreshing the data
 
-Six data sets from four sources feed the picker. One command brings the hero
-roster up to date and then rebuilds all of them:
+Six data sets from four sources feed the picker, and a seventh file — the
+win-chance model's weights — is fitted from them. One command brings the hero
+roster up to date and then rebuilds all of it:
 
 ```bash
 npm run refresh
@@ -19,10 +20,13 @@ steps is misbehaving and you want to drive it by hand.
 | `timings` | OpenDota `public_matches` | `public/data/timings.json` | No |
 | `lanes` | STRATZ `heroStats.laneOutcome` | `public/data/lanes.json` | Needs a free API token — [see below](#the-stratz-token) |
 | `portraits` | Valve's CDN | `public/heroes/*.png` | No |
+| `calibrate` | OpenDota `public_matches`, the files above | `public/data/calibration.json` | No |
 | `readme` | the files above, Valve's patch list | the badges and data table in `README.md` | No |
 
 They run in that order: the synergy pass reads positions out of `positions.json`,
-or out of `matchups.json` when that file is missing. `readme` goes last and joins
+or out of `matchups.json` when that file is missing, and `calibrate` fits the
+win-chance model on the files every step before it wrote, from games older than
+the synergy and timing samples. `readme` goes last and joins
 any run that includes another step, `--steps` or not, so the README always
 describes the files beside it; `--skip=readme` leaves it out.
 A failing step does not stop the rest, an interrupted step picks up from its
@@ -340,6 +344,13 @@ filter is in the way. A cookie will not help here.
 **Page loads, zero rows parsed** — Dotabuff changed its markup. Only
 `scripts/parse.mjs` needs fixing; `scripts/fixtures/` pins the structure it
 expects, so start by updating a fixture and running `npm test`.
+
+**`calibrate`: "the fit failed its checks"** — the lines above it name the
+check: too few games, a fit no better than knowing the side, a calibration bin
+that misses, or a weight with an impossible sign. The previous
+`calibration.json` stays, and the app keeps showing the win chance with a
+*calibration predates data* tag. Rerun `npm run refresh -- --steps=calibrate`
+once the OpenDota steps are `ok`; never edit the file by hand.
 
 ## Troubleshooting
 

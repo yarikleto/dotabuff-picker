@@ -9,6 +9,7 @@ import {
   verdictFor,
 } from "./analysis.ts";
 import type { LaneModel } from "./lanes.ts";
+import type { Calibration } from "./winModel.ts";
 import { DEFAULT_SETTINGS } from "./scoring.ts";
 import { deriveTimingShape } from "./timing.ts";
 import type {
@@ -1424,4 +1425,84 @@ test("a lost laning stage is the lane talking point, and the export says so", ()
     talkingPoints(a).join(" | "),
   );
   assert.match(toMarkdown(a), /laning 4\d% ours/);
+});
+
+// ---------------------------------------------------------------- win chance
+
+const CALIBRATION: Calibration = {
+  generatedAt: "2026-09-23T00:00:00.000Z",
+  matches: 300_000,
+  matchIdRange: null,
+  tau: 1.5,
+  weights: {
+    matchups: 0.046,
+    cohesion: 0.018,
+    heroes: 0.052,
+    seatPenalty: 0.028,
+    seatBonus: 0.02,
+    roleDeficit: -0.08,
+    timing: 0.01,
+  },
+  range: [0.15, 0.85],
+  inputs: {},
+  holdout: null,
+  reliability: [],
+};
+
+const calibrated = (): Dataset => ({ ...makeDataset(), calibration: CALIBRATION });
+
+test("the headline is a win chance once the dataset carries a calibration", () => {
+  const a = analyseDraft(calibrated(), fullDraft, settings)!;
+  assert.ok(a.win, "calibrated");
+  near(a.win.parts.reduce((s, p) => s + p.points, 0), a.win.chance * 100 - 50, "the parts add up to the figure");
+  assert.equal(
+    analyseDraft(makeDataset(), fullDraft, settings)!.win,
+    null,
+    "and without one it is the comparison signal it always was",
+  );
+});
+
+test("the copied briefing leads with the win chance and its parts", () => {
+  const lines = toMarkdown(analyseDraft(calibrated(), fullDraft, settings)!).split("\n");
+  assert.match(lines[0]!, /^\*\*Win chance (\d+%|under \d+%|over \d+%) — /);
+  assert.match(lines[1]!, /(roles|matchups|cohesion|heroes|timing) [+−]\d/);
+  assert.match(toMarkdown(analyseDraft(makeDataset(), fullDraft, settings)!).split("\n")[0]!, /^\*\*Draft /);
+});
+
+test("the hero card previews the win chance when there is one", () => {
+  const impact = pickImpact(calibrated(), midOnly, settings, "counter", 3)!;
+  assert.equal(impact.unit, "chance");
+  assert.ok(impact.before !== null && impact.after > 0 && impact.after < 100);
+  assert.equal(pickImpact(makeDataset(), midOnly, settings, "counter", 3)!.unit, "points");
+});
+
+test("the hero card prints the win chance the way the headline does", () => {
+  const within = pickImpact(calibrated(), midOnly, settings, "counter", 3)!;
+  assert.equal(within.shown!.after, `${Math.round(within.after)}%`);
+  assert.equal(within.shown!.before, `${Math.round(within.before!)}%`);
+  assert.equal(within.shown!.inRange, true, "both ends inside, so the move is printed");
+
+  // A range no draft here reaches: every figure is past it, as on a rank band
+  // where the whole board reads under the lowest calibrated bin.
+  const high: Dataset = { ...makeDataset(), calibration: { ...CALIBRATION, range: [0.9, 0.95] } };
+  const beyond = pickImpact(high, midOnly, settings, "counter", 3)!;
+  assert.equal(beyond.shown!.after, "<90%");
+  assert.equal(beyond.shown!.before, "<90%");
+  assert.equal(beyond.shown!.inRange, false, "a move between two bounds is not printed");
+  near(beyond.after, within.after, "the raw figure the colour reads is unchanged");
+
+  assert.equal(pickImpact(makeDataset(), midOnly, settings, "counter", 3)!.shown, undefined);
+});
+
+test("a line-up in seats it never plays says so before anything else", () => {
+  const data = calibrated();
+  // Every one of ours ten points worse in any seat than overall.
+  for (const p of fullDraft.mine) {
+    data.bySlug.get(p.slug)!.positionWinRate = { 1: 40, 2: 40, 3: 40, 4: 40, 5: 40 };
+  }
+  const a = analyseDraft(data, fullDraft, settings)!;
+  const roles = a.win!.parts.find((p) => p.group === "roles")!;
+  assert.ok(roles.points < -5, `roles ${roles.points}`);
+  assert.match(a.win!.reasons.roles!, /^ALLY wins 40\.0% at 1 against 50\.0% overall/);
+  assert.match(talkingPoints(a)[0]!, /^Fix the roles: /);
 });

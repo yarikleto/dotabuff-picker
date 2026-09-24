@@ -1,6 +1,7 @@
 import { POSITION_LABEL } from "./roles";
 import { formatSigned } from "./scoring";
-import type { Readiness, RebalanceOption, RebalanceReport } from "./rebalance";
+import { GROUP_LABEL, WIN_GROUPS } from "./winModel";
+import type { ArrangementScore, Readiness, RebalanceOption, RebalanceReport } from "./rebalance";
 
 /**
  * How a rearrangement is put into words.
@@ -41,6 +42,27 @@ export interface Headline {
  */
 export const TOTAL_UNIT = "overall";
 
+/** The unit of `total` when the dataset carries a calibration. */
+export const CHANCE_UNIT = "win chance";
+
+/** What an option's figures are points *of*. */
+export const unitOf = (option: RebalanceOption): string =>
+  option.score.chance !== null ? CHANCE_UNIT : TOTAL_UNIT;
+
+/**
+ * A board's headline figure as the panel prints it: the win chance exactly as
+ * the Draft analysis headline shows it — a bound beyond the calibrated range —
+ * or the signed comparison signal.
+ */
+export const boardFigure = (score: ArrangementScore): string =>
+  score.shown !== null ? `${score.shown} to win` : formatSigned(score.advantage, 1);
+
+/** The qualifying floor, with its unit. */
+export const thresholdText = (report: RebalanceReport): string =>
+  report.current.chance !== null
+    ? `${report.threshold} point${report.threshold === 1 ? "" : "s"} of win chance`
+    : `${report.threshold.toFixed(1)} points`;
+
 /** "Earth Spirit", "Earth Spirit and Undying", "3 heroes". */
 const nameList = (names: string[]): string =>
   names.length <= 1
@@ -53,30 +75,38 @@ export function headlineFor(option: RebalanceOption): Headline {
   if (option.reason === "seat") {
     const who = nameList(option.repairedSeats.map((seat) => seat.name));
     const cost = option.gain.total;
+    const calibrated = option.score.chance !== null;
     return {
       // The cost, not the count. A seat repair is the one thing on this panel
       // that can be worth taking at a loss, so the figure the reader needs is
       // what it costs — the reason it is on the list is the sentence next to it.
       value: formatSigned(cost, 1),
-      unit: TOTAL_UNIT,
+      unit: unitOf(option),
       tone: cost >= 0 ? "good" : "warn",
       title:
         `${who} ${option.repairedSeats.length === 1 ? "is" : "are"} booked into a position ` +
         `they hardly ever play. This puts them somewhere they do, and ` +
         (cost >= 0
-          ? `costs nothing — the board is worth ${formatSigned(cost, 1)} more arranged this way.`
-          : `costs ${formatSigned(-cost, 1)} points of the overall figure to do it.`),
+          ? calibrated
+            ? `costs nothing — the win chance is ${formatSigned(cost, 1)} points higher arranged this way.`
+            : `costs nothing — the board is worth ${formatSigned(cost, 1)} more arranged this way.`
+          : calibrated
+            ? `costs ${formatSigned(-cost, 1)} points of win chance to do it.`
+            : `costs ${formatSigned(-cost, 1)} points of the overall figure to do it.`),
     };
   }
   if (option.reason === "score") {
     return {
       value: formatSigned(option.gain.total, 1),
-      unit: TOTAL_UNIT,
+      unit: unitOf(option),
       tone: "good",
       title:
-        "What this arrangement is worth all told: the change to the draft figure plus the " +
-        "change in how well your five suit the seats they would take. Both halves are broken " +
-        "out below.",
+        option.score.chance !== null
+          ? "How much this arrangement adds to the win chance, in points. The parts that moved are " +
+            "listed below; the lane read beside them is for information and is not in the figure."
+          : "What this arrangement is worth all told: the change to the draft figure plus the " +
+            "change in how well your five suit the seats they would take. Both halves are broken " +
+            "out below.",
     };
   }
   const lane = option.repairedLane!;
@@ -140,11 +170,21 @@ export function costOf(option: RebalanceOption): string {
  * term that moved: seating is what decides the laning stage, and it is the only
  * one of the three a captain can check against what they can see.
  */
-export const breakdownOf = (option: RebalanceOption): string =>
-  `draft ${formatSigned(option.gain.advantage, 1)} · lanes ${formatSigned(
-    option.gain.lanes,
-    1,
-  )} · seats ${formatSigned(option.gain.fit, 1)}`;
+export const breakdownOf = (option: RebalanceOption): string => {
+  const parts = option.gain.parts;
+  if (!parts) {
+    return `draft ${formatSigned(option.gain.advantage, 1)} · lanes ${formatSigned(
+      option.gain.lanes,
+      1,
+    )} · seats ${formatSigned(option.gain.fit, 1)}`;
+  }
+  // The parts that moved, then the lane read, which is not in the figure but
+  // is the one thing on this line a captain can check against what they see.
+  const moved = WIN_GROUPS.filter((group) => Math.abs(parts[group]) >= 0.05).map(
+    (group) => `${GROUP_LABEL[group].toLowerCase()} ${formatSigned(parts[group], 1)}`,
+  );
+  return [...moved, `lane read ${formatSigned(option.gain.lanes, 1)}`].join(" · ");
+};
 
 /**
  * The top-bar button.
@@ -164,7 +204,7 @@ export function buttonLabel(report: RebalanceReport | null): string {
     return `Rebalance — ${n} off-role`;
   }
   if (best?.reason === "score") {
-    return `Rebalance ${formatSigned(best.gain.total, 1)} ${TOTAL_UNIT}`;
+    return `Rebalance ${formatSigned(best.gain.total, 1)} ${unitOf(best)}`;
   }
   if (best) return `Rebalance ${formatSigned(best.repairedLane!.delta, 1)} ${best.repairedLane!.short}`;
   return "Rebalance";
@@ -186,10 +226,11 @@ export function buttonTitle(report: RebalanceReport | null, readiness: Readiness
       : `${seats}, and no rearrangement of these five fixes it — open for the detail`;
   }
   if (best?.reason === "score") {
-    return (
-      `Your five are worth ${formatSigned(best.gain.total, 1)} more arranged differently ` +
-      `(${breakdownOf(best)}) — click for the options`
-    );
+    return best.score.chance !== null
+      ? `Your five gain ${formatSigned(best.gain.total, 1)} points of win chance arranged differently ` +
+          `(${breakdownOf(best)}) — click for the options`
+      : `Your five are worth ${formatSigned(best.gain.total, 1)} more arranged differently ` +
+          `(${breakdownOf(best)}) — click for the options`;
   }
   if (best) {
     const lane = best.repairedLane!;

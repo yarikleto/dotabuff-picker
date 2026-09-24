@@ -131,14 +131,14 @@ async function rosterSize() {
 
 async function main() {
   const problems = [];
-  const names = ["matchups", "positions", "lanes", "synergies", "timings"];
+  const names = ["matchups", "positions", "lanes", "synergies", "timings", "calibration"];
   const files = Object.fromEntries(
     await Promise.all(names.map(async (name) => [name, await readJson(join(DATA, `${name}.json`))])),
   );
 
   const [patches, sampleWindows, pkg] = await Promise.all([
     loadPatches(problems),
-    loadSampleWindows([files.synergies, files.timings], problems),
+    loadSampleWindows([files.synergies, files.timings, files.calibration], problems),
     readJson(join(ROOT, "package.json")),
   ]);
 

@@ -43,12 +43,13 @@ have one, either because the two would never meet in a lane or because the
 table has no row that thick. [How it is measured](scoring.md#counters-by-seat).
 
 The card also answers the question the score raises but cannot settle: **what
-the board becomes if you take them.** `draft −0.4 → +1.9 (+2.3)`, plus the lane
-that pick moves most. A score is an average over pairings, so a hero worth +2
-overall can still be the pick that hands away the safe lane — and a merely
-average hero can be the one that fixes it. Both halves are the same
-`draftBalance` arithmetic the headline uses, run twice, so the preview always
-agrees with the number it is previewing.
+the board becomes if you take them.** With a calibration it is `win chance 38%
+→ 44% (+6)`, plus the lane that pick moves most: the same `winRead` arithmetic
+the headline uses, run twice, so the preview always agrees with the number it
+is previewing. A score is an average over pairings, so a hero worth +2 overall
+can still be the pick that hands away the safe lane — and a merely average hero
+can be the one that fixes it. Without `calibration.json` it falls back to
+`draft −0.4 → +1.9 (+2.3)`, the same `draftBalance` arithmetic instead.
 
 ## Off-role answers
 
@@ -136,17 +137,24 @@ unstarred hero near the top may be a setting.
 ## Reading the draft
 
 **Draft analysis** is the first of the top bar's actions. It carries the
-draft's signed score and opens the analysis above the board; until both teams
-have a hero it is greyed out and its tooltip says what it needs. The score is a
-comparison signal built from weighted matchup, synergy and early-cover terms,
-not a predicted win probability.
+draft's win chance and opens the analysis above the board; until both teams
+have a hero it is greyed out and its tooltip says what it needs. The chance
+comes from a model whose weights are fitted on real ranked games and checked out of
+fold — see [Win chance](scoring.md#win-chance). Without
+`public/data/calibration.json` the button carries the older signed comparison
+signal instead, and the panel is tagged `uncalibrated`.
 
 The analysis opens on **Game plan**:
 
+- The win chance and its verdict, with what drafts rated like this actually won
+  underneath. **What moves the win chance** gives each part — roles, matchups,
+  cohesion, heroes, timing — in points of win chance, with the reason behind it;
+  the parts add up to the figure.
 - A draft-specific strategic headline, followed by the best timing window,
   opening lane pressure, widest enemy threat, and the share of sampled games
   ending before your first favorable timing window. First favorable and peak
-  timing are deliberately separate.
+  timing are deliberately separate. When the seats are the largest cost on the
+  board the headline says so first: *Fix the roles first.*
 - An evidence-backed playbook: timing priorities, lanes to protect or pressure,
   enemies affecting several teammates, severe individual counters, favorable
   matchups and the strongest measured partnership. **Why this matters** opens
@@ -241,6 +249,10 @@ The detailed measurements are:
   bad at. The per-window figures are still listed underneath.
 - **Our five.** Every hero of yours scored against their line-up and beside
   your own, best contributor to hardest game — the strong link and the weak one.
+- **Roles.** Every hero on both sides with the seat they are booked into, the
+  share of their games played there, and their win rate there against their own.
+  A side whose heroes between them hardly ever support, or hardly ever farm, is
+  named in the heading.
 - **Pairings that matter.** The five head-to-heads hurting you most and the five
   going your way, with sample sizes.
 - **Cohesion.** Your pairings against theirs, best and worst named.
@@ -275,14 +287,14 @@ and paint +0.1 green two inches below it. Dotabuff's own two pages disagree by
 more than half a point on roughly one pairing in ten, so anything smaller is
 inside the error of the source before the model gets to it.
 
-**There is no expected win rate.** The headline is a signed comparison between
-two line-ups in percentage points, and it is labelled as one. It was briefly
-printed as `≈49.7% expected win rate`, which it is not: the figure is the *mean*
-of up to 25 pairwise deltas plus a mean synergy delta, and a mean of marginal
-effects is not the combined effect of all of them — if you believed they were
-additive you would sum, not average. Averaging also pulls it towards zero as
-the board fills, so the number got calmer the more it knew. Use it to rank two
-drafts against each other, not to predict a match.
+**The win chance is calibrated.** For a while the panel printed `50 + advantage`
+as an expected win rate, which it was not: the figure was a *mean* of pairwise
+deltas, and a mean of marginal effects is not their combined effect. The fix at
+the time was to stop calling it a probability. The fix now is to make it one:
+the parts are summed, weighted by what real games say each is worth, and the
+result is checked out of fold — drafts rated 38% won
+37.6% of theirs. Outside the range the calibration can vouch for, the headline
+says "under 15%" rather than printing a figure nobody has checked.
 
 **Compact** drops the tables and keeps the verdict and the talking points, which
 is the shape you want mid-draft: the panel shrinks to a few lines, so the hero
@@ -342,9 +354,10 @@ just runs all of it — 240 arrangements in well under a millisecond — every t
 the board changes.
 
 The button lives in the top bar and stays quiet until there is something to say.
-When the search finds an arrangement worth more than the noise floor it turns
-amber and carries the figure: `Rebalance +1.4`. That is the warning half of the
-feature — the case worth catching is the one you did not think to look for.
+When the search finds an arrangement worth at least a point of win chance it
+turns amber and carries the figure: `Rebalance +2.1 win chance`. That is the
+warning half of the feature — the case worth catching is the one you did not
+think to look for.
 
 Two kinds of move are on the table:
 
@@ -378,12 +391,16 @@ An arrangement earns its place on the list one of three ways:
   they do not play are named at the top of the panel, and the arrangements that
   free them are offered whether or not the figure improves, with the cost printed
   on each. This is the only kind of row on the panel allowed to lose score, and
-  it may lose at most `MAX_SEAT_COST`, about half of what the stretch it is
-  undoing is priced at. When nothing fixes it, the panel says *that*
+  it may lose at most five points of win chance (`MAX_SEAT_CHANCE_COST`), just
+  under what the model charges for a hero in the thinnest seats — or, without a
+  calibration, two points of the comparison signal (`MAX_SEAT_COST`). When
+  nothing fixes it, the panel says *that*
   instead of saying nothing: *"no rearrangement of these five fixes it — that is
   a draft problem, not a seating one."*
-- **It is worth more overall** — `total` beats the board's by more than the
-  [noise floor](#reading-the-draft).
+- **It is worth more** — it adds at least a point of win chance. Seats and the
+  role deficit are inside the win chance; the lane read is not, because it
+  predicted nothing on real games, so a lane swap on its own never qualifies
+  this way.
 - **It rescues a lane.** A single scalar over 25 pairings can hide an enormous
   change to four of them: moving a countered mid is worth two points *in that
   lane*, costs most of it back across the map, and nets out under the floor. The
@@ -392,11 +409,15 @@ An arrangement earns its place on the list one of three ways:
   and improves past it counts, as long as the whole-board figure does not drop.
 
 Because those lead with *different quantities*, every figure in the panel
-prints the thing it measures underneath itself — `+1.8 board` against
-`+2.3 mid` — and the supporting line carries the rest: `board +0.5 · draft −0.1
-· coin flip · Safe lane +1.2`. The distinction used to be carried by colour
-alone, which explains nothing, is the first thing lost to a cropped screenshot,
-and left a bare amber `+2.5` sitting over a draft that was losing.
+prints the thing it measures underneath itself — `+1.8 win chance` against
+`+2.3 mid` — and the supporting line carries the rest. Calibrated, it names the
+win-chance parts that moved, then the lane read beside them, then what the
+whole board reads at: `roles +3.4 · matchups −0.7 · cohesion −0.1 · heroes +0.2
+· lane read −0.1 · leaves the draft at 19% to win, you are being run over`.
+Without a calibration the line falls back to three parts instead: `draft +0.5
+· lanes −0.1 · seats +1.2`. The distinction used to be carried by colour alone,
+which explains nothing, is the first thing lost to a cropped screenshot, and
+left a bare amber `+2.5` sitting over a draft that was losing.
 
 Three things then keep the list honest:
 

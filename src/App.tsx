@@ -311,6 +311,38 @@ export default function App() {
     [dataset, draft, settings],
   );
 
+  /**
+   * The figure on the Draft analysis button and what it says on hover: the win
+   * chance when the data carries a calibration, the signed comparison signal
+   * otherwise. Worked out once so the chip and its tooltip cannot disagree.
+   */
+  const headline = useMemo(() => {
+    if (!analysis) return null;
+    const opens = "Opens the game plan, the matchup map and the full breakdown.";
+    const win = analysis.win;
+    if (win) {
+      const parts = [...win.parts]
+        .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+        .filter((p) => Math.abs(p.points) >= 0.05)
+        .map((p) => `${p.label.toLowerCase()} ${formatSigned(p.points, 1)}`)
+        .join(", ");
+      return {
+        text: win.short,
+        side: win.verdict.side,
+        title:
+          `${win.verdict.label} — win chance ${win.shown}${parts ? ` (${parts})` : ""}. ` +
+          `Calibrated on ${win.matches.toLocaleString()} ranked games. ${opens}`,
+      };
+    }
+    return {
+      text: formatSigned(analysis.advantage, 1),
+      side: analysis.verdict.side,
+      title:
+        `${analysis.verdict.label} — matchups ${formatSigned(analysis.counter, 1)}, ` +
+        `cohesion ${formatSigned(analysis.synergyEdge, 1)}. ${opens}`,
+    };
+  }, [analysis]);
+
   // The panel takes focus when it mounts, so it must only ever mount from a
   // click — not reappear on its own when the next enemy hero goes in.
   const hasAnalysis = analysis !== null;
@@ -701,26 +733,16 @@ export default function App() {
               }}
               aria-disabled={!analysis}
               aria-expanded={showAnalysis && !!analysis}
-              title={
-                analysis
-                  ? `${analysis.verdict.label} — matchups ${formatSigned(analysis.counter, 1)}, ` +
-                    `cohesion ${formatSigned(analysis.synergyEdge, 1)}. ` +
-                    "Opens the game plan, the matchup map and the full breakdown."
-                  : "Put a hero on each team to analyse the draft"
-              }
+              title={headline ? headline.title : "Put a hero on each team to analyse the draft"}
             >
               Draft analysis
-              {analysis && (
+              {headline && (
                 <span
                   className={`num-chip ${
-                    analysis.verdict.side === "even"
-                      ? ""
-                      : analysis.verdict.side === "mine"
-                        ? "good"
-                        : "bad"
+                    headline.side === "even" ? "" : headline.side === "mine" ? "good" : "bad"
                   }`}
                 >
-                  {formatSigned(analysis.advantage, 1)}
+                  {headline.text}
                 </span>
               )}
             </button>

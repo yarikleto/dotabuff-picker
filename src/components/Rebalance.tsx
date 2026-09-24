@@ -3,7 +3,14 @@ import { HeroPortrait } from "./HeroPortrait";
 import { useSheetFocus } from "./useSheetFocus";
 import { POSITION_LABEL } from "../lib/roles";
 import { formatSigned } from "../lib/scoring";
-import { breakdownOf, costOf, describeOption, headlineFor } from "../lib/rebalanceCopy";
+import {
+  boardFigure,
+  breakdownOf,
+  costOf,
+  describeOption,
+  headlineFor,
+  thresholdText,
+} from "../lib/rebalanceCopy";
 import type { RebalanceOption, RebalanceReport } from "../lib/rebalance";
 import type { Hero, LanePlan, Position } from "../types";
 
@@ -116,10 +123,10 @@ function Option({
             is the number on the Draft analysis button and the one they will
             check this against.
           */}
-          <span title="The two terms behind the figure on the left: what the arrangement does to the draft number, and what it does to how well your five suit their seats.">
+          <span title={option.gain.parts ? "The parts of the win chance this arrangement moves, in points, and the lane read beside them (not in the figure)." : "The three terms behind the figure on the left: the draft number, the lane read and how well your five suit their seats."}>
             {breakdownOf(option)}
           </span>
-          {` · leaves the draft at ${formatSigned(option.score.advantage, 1)}, ${option.verdict.toLowerCase()}`}
+          {` · leaves the draft at ${boardFigure(option.score)}, ${option.verdict.toLowerCase()}`}
           {/* The repaired lane is already the headline figure; the rest are the cost. */}
           {option.laneShifts
             .filter((shift) => shift.key !== option.repairedLane?.key)
@@ -249,9 +256,8 @@ export function Rebalance({
           <div className="sheet-title">
             <h2 id="rebalance-title">Rebalance</h2>
             <p className="muted">
-              {`Same five heroes, different seats. The draft reads ${formatSigned(
-                report.current.advantage,
-                1,
+              {`Same five heroes, different seats. The draft reads ${boardFigure(
+                report.current,
               )} — ${report.currentVerdict.toLowerCase()}.`}
               {losing.length > 0 && (
                 <span className="bad">
@@ -398,7 +404,7 @@ export function Rebalance({
           <p className="empty">
             {report.pinned
               ? "Every hero is pinned to the one position they play often enough for your role threshold — the deployment was the only thing on the table."
-              : `No arrangement beats the board by more than ${report.threshold.toFixed(1)} points, and no lane you are losing is fixed by moving anyone.`}
+              : `No arrangement beats the board by more than ${thresholdText(report)}, and no lane you are losing is fixed by moving anyone.`}
           </p>
         )}
 
@@ -434,14 +440,29 @@ export function Rebalance({
 
         <footer className="rebalance-foot muted">
           <p>
-            Single trades first — all of them — then one arrangement per amount of upheaval.
-            Figures are percentage points of win rate: <strong>draft</strong> is the number on the
-            Draft analysis button — matchups, cohesion and timing, all measured over whole games;{" "}
-            <strong>lanes</strong> is what the laning stage is worth, from how the pairings standing
-            opposite each other have gone in lane, each side&apos;s record in the lane they would be
-            standing in, and how the two duos work together;{" "}
-            <strong>seats</strong> is each hero&apos;s record in the position they would take;{" "}
-            <strong>overall</strong> is the three together, which is what the lists are ranked on.
+            Single trades first — all of them — then one arrangement per amount of upheaval.{" "}
+            {report.current.chance !== null ? (
+              <>
+                Figures are points of win chance, the same model as the Draft analysis headline: each
+                option&apos;s gain is split into the parts of the win chance that moved — roles,
+                matchups, cohesion, heroes and timing — and they add up to the gain. The lane read
+                beside them is what the laning stage is worth, from how the pairings standing opposite
+                each other have gone in lane, each side&apos;s record in the lane they would be
+                standing in, and how the two duos work together; it is printed for information and is
+                not in the figure, which is ranked on the win chance alone. An option listed for a lane
+                is there because it takes a losing lane out of the fire.
+              </>
+            ) : (
+              <>
+                Figures are percentage points of win rate: <strong>draft</strong> is the number on the
+                Draft analysis button — matchups, cohesion and timing, all measured over whole games;{" "}
+                <strong>lanes</strong> is what the laning stage is worth, from how the pairings standing
+                opposite each other have gone in lane, each side&apos;s record in the lane they would be
+                standing in, and how the two duos work together;{" "}
+                <strong>seats</strong> is each hero&apos;s record in the position they would take;{" "}
+                <strong>overall</strong> is the three together, which is what the lists are ranked on.
+              </>
+            )}
           </p>
           <p>
             What the model cannot see is who on your team can actually play the seat, so read the

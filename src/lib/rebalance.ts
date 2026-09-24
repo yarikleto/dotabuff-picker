@@ -1,6 +1,8 @@
 import { NOISE, draftBalance } from "./scoring";
 import { laneScoreboard, verdictFor } from "./analysis";
 import { POSITIONS, canPlay, positionFit, positionWinRate } from "./roles";
+import { WIN_GROUPS, verdictForChance, winChance } from "./winModel";
+import type { WinGroup } from "./winModel";
 import type { DraftView } from "./scoring";
 import type { ContestedLane, LaneScoreboardEntry } from "./analysis";
 import type { Dataset, DraftPick, Hero, LanePlan, Position, Settings } from "../types";
@@ -138,7 +140,19 @@ export interface ArrangementScore {
    * time. See `laning` on `LaneScoreboardEntry`.
    */
   lanes: number;
-  /** `advantage + fit + lanes` — what arrangements are ranked on. */
+  /**
+   * The win chance of the board arranged this way, in points (0–100), when the
+   * dataset carries a calibration; null otherwise. With it, this is what
+   * arrangements are ranked on: seats and the role deficit are inside the
+   * model, fitted on how seats actually go, and the lane read measured nothing
+   * on real games. See docs/scoring.md, "Scoring an arrangement".
+   */
+  chance: number | null;
+  /** `chance` as the headline prints it — "38%", or "under 15%" beyond the calibrated range. */
+  shown: string | null;
+  /** `chance` by group, in points; null without a calibration. */
+  parts: Record<WinGroup, number> | null;
+  /** What arrangements are ranked on: `chance` when calibrated, `advantage + fit + lanes` otherwise. */
   total: number;
 }
 
@@ -155,6 +169,10 @@ export interface Gain {
   advantage: number;
   fit: number;
   lanes: number;
+  /** Points of win chance, when calibrated. */
+  chance: number | null;
+  /** That change by group; the parts add up to `chance`. */
+  parts: Record<WinGroup, number> | null;
   total: number;
 }
 
@@ -360,7 +378,11 @@ export interface RebalanceReport {
    * "no better arrangement" when the truthful answer is "no other arrangement".
    */
   pinned: boolean;
-  /** The noise floor this search used, so nothing downstream has to restate it. */
+  /**
+   * The qualifying floor this search used — a point of win chance when
+   * calibrated, the noise floor otherwise — so nothing downstream has to
+   * restate it.
+   */
   threshold: number;
   /** The role threshold in force, for the same reason. */
   minRoleFit: number;
@@ -466,7 +488,23 @@ function readArrangement(
   const fit = lineupFit(data, arrangement.picks, settings);
   const board = laneScoreboard(data, view, settings);
   const lanes = laningEdge(board);
-  return { score: { advantage, fit, lanes, total: advantage + fit + lanes }, board };
+  const win = data.calibration ? winChance(data, view, data.calibration) : null;
+  const chance = win ? win.chance * 100 : null;
+  const parts = win
+    ? (Object.fromEntries(win.parts.map((p) => [p.group, p.points])) as Record<WinGroup, number>)
+    : null;
+  return {
+    score: {
+      advantage,
+      fit,
+      lanes,
+      chance,
+      shown: win ? win.shown : null,
+      parts,
+      total: chance ?? advantage + fit + lanes,
+    },
+    board,
+  };
 }
 
 /** What the board would be worth arranged this way. */
@@ -582,7 +620,9 @@ function offRoleSeats(data: Dataset, picks: DraftPick[], settings: Settings): Of
 }
 
 /**
- * The most score a seat repair may cost before it stops being advice.
+ * The most score a seat repair may cost before it stops being advice, on the
+ * comparison signal — the search without a calibration. With one, `total` is in
+ * points of win chance and the ceiling is `MAX_SEAT_CHANCE_COST`.
  *
  * A ceiling, not a working limit. Across 283 scrambled boards the dearest
  * repair the live table produced cost 1.48, and only 39 of 794 cost anything at
@@ -599,6 +639,51 @@ function offRoleSeats(data: Dataset, picks: DraftPick[], settings: Settings): Of
  * Exported so the test that pins the bound reads the bound itself.
  */
 export const MAX_SEAT_COST = 2;
+
+/**
+ * Points of win chance an arrangement has to add to be offered on its figure
+ * alone, when the dataset carries a calibration. The comparison signal's half
+ * point was worth about four and a half points of win chance on real games; one
+ * is the smallest change worth asking a player to move for.
+ */
+export const CHANCE_GAIN = 1;
+
+/**
+ * The most win chance a seat repair may cost, in points, when the dataset
+ * carries a calibration — `MAX_SEAT_COST`'s job, in the units `total` is then in.
+ *
+ * Not `MAX_SEAT_COST` read in new units, which is what stood here first. Two
+ * points of win chance is inside what real repairs cost: across 900 scrambled
+ * boards on the live table, one in forty of the repairs the panel would have
+ * shortlisted cost more than two points of win chance, against almost none past
+ * two on the comparison signal. Reusing the number made the calibrated search
+ * several times stricter than the one it replaced, silently — a repair the
+ * signal offered was dropped, and a board whose only repairs were dear was told
+ * no rearrangement fixes it. Nor is it that limit put through the conversion
+ * `CHANCE_GAIN` quotes, which would make it eighteen: that rate is what a point
+ * of the draft figure is worth on real games, and a reseat moves the seat terms
+ * and little else. On those boards a repair's change in win chance ran at about half
+ * its change in the signal, with a wider spread.
+ *
+ * Five is the same kind of ceiling as the signal's two, and it is reached from
+ * both sides. It is above every repair the panel would have shown on those
+ * boards — the dearest, shortlisted or one trade away, cost 4.3 — so it does not
+ * pick between the repairs a captain will actually see. And it is just under
+ * what the model itself charges for the stretch being undone: a hero in the
+ * thinnest seats reads 7.4pp below their own figure, which at the fitted
+ * seat-penalty weight (0.031 log-odds a point in the current calibration) is
+ * 0.23 log-odds, about five and three-quarter points of win chance on an even
+ * board. A repair dearer than that is losing more elsewhere than the stranded
+ * seat was ever costing, which is the "wreck the draft to satisfy a slider" row
+ * the bound exists to refuse.
+ *
+ * Seldom reached, because the model prices a bad seat: freeing one usually
+ * *adds* chance, and the median shortlisted repair on those boards gained half
+ * a point. The cost comes from a thin seat the model does not mind — a small
+ * sample that happens to have gone well — and from whoever has to move to make
+ * room.
+ */
+export const MAX_SEAT_CHANCE_COST = 5;
 
 /** The same five heroes in the same positions? */
 const samePlacement = (a: DraftPick[], b: DraftPick[]): boolean => {
@@ -812,6 +897,20 @@ export function rebalance(
   const board = readArrangement(data, draft, settings, { picks: draft.mine, lanePlan: plan });
   const current = board.score;
   const currentLanes = board.board;
+  /**
+   * The qualifying floor, in the units `total` is in: a point of win chance
+   * when calibrated, the app's half-point noise floor on the comparison signal
+   * otherwise.
+   */
+  const floor = current.chance !== null ? CHANCE_GAIN : NOISE;
+  /**
+   * And the most a seat repair may cost, in the same units. Chosen the same way
+   * as `floor` and for the same reason: a limit set on one scale and read on the
+   * other is a different rule, not the same one.
+   */
+  const seatCeiling = current.chance !== null ? MAX_SEAT_CHANCE_COST : MAX_SEAT_COST;
+  const verdictOf = (score: ArrangementScore) =>
+    score.chance !== null ? verdictForChance(score.chance / 100).label : verdictFor(score.advantage).label;
   const oneMoveAway = new Set(
     [...neighbours(draft.mine, plan)].map((arrangement) => arrangementId(arrangement)),
   );
@@ -851,6 +950,13 @@ export function rebalance(
         advantage: score.advantage - current.advantage,
         fit: score.fit - current.fit,
         lanes: score.lanes - current.lanes,
+        chance: score.chance !== null && current.chance !== null ? score.chance - current.chance : null,
+        parts:
+          score.parts && current.parts
+            ? (Object.fromEntries(
+                WIN_GROUPS.map((group) => [group, score.parts![group] - current.parts![group]]),
+              ) as Record<WinGroup, number>)
+            : null,
         total: score.total - current.total,
       };
 
@@ -859,18 +965,18 @@ export function rebalance(
        * decided before the floor that would otherwise throw it away: it has to
        * free somebody the board had stranded, must not strand anybody who was
        * fine, and may not spend more than the stretch it is undoing was priced
-       * at. See `MAX_SEAT_COST`.
+       * at. See `MAX_SEAT_COST` and `MAX_SEAT_CHANCE_COST`.
        */
       const fixesSeats =
-        repairedSeats.length > 0 && !strandsAnyoneNew && gain.total > -MAX_SEAT_COST;
+        repairedSeats.length > 0 && !strandsAnyoneNew && gain.total > -seatCeiling;
 
       /**
        * Below this the arrangement is not merely unhelpful, it is a loss, and
        * no lane it happens to improve is worth taking one for. Above `NOISE` it
        * qualifies outright. In between is the band the lane rule exists for.
        */
-      if (gain.total <= -NOISE && !fixesSeats) continue;
-      const qualifies = gain.total >= NOISE;
+      if (gain.total <= -floor && !fixesSeats) continue;
+      const qualifies = gain.total >= floor;
 
       // Free now: the scoreboard behind these shifts is the one the arrangement
       // was scored from, so the figure and its explanation cannot disagree.
@@ -912,7 +1018,7 @@ export function rebalance(
         swapsLanes,
         size: moves.length + (swapsLanes ? 1 : 0),
         laneShifts: laneShifts.slice(0, 3),
-        verdict: verdictFor(score.advantage).label,
+        verdict: verdictOf(score),
         stretch: stretched
           ? { name: stretched.name, position: stretched.to, fit: stretched.fit }
           : null,
@@ -931,7 +1037,7 @@ export function rebalance(
    * better judge of that than the share of games Dotabuff scraped.
    */
   const swaps = candidates
-    .filter((c) => oneMoveAway.has(c.id) && (c.gain.total >= NOISE || c.reason === "seat"))
+    .filter((c) => oneMoveAway.has(c.id) && (c.gain.total >= floor || c.reason === "seat"))
     .sort(
       (a, b) =>
         // A trade that puts a stranded hero back leads, whatever it costs — it
@@ -985,7 +1091,7 @@ export function rebalance(
 
   return {
     current,
-    currentVerdict: verdictFor(current.advantage).label,
+    currentVerdict: verdictOf(current),
     losing,
     offRole: boardOffRole,
     seatFixes,
@@ -1004,7 +1110,7 @@ export function rebalance(
     // One legal seating means the role threshold pinned every hero where they
     // are; the only thing ever on the table was the lane plan.
     pinned: counts.legalSeatings <= 1,
-    threshold: NOISE,
+    threshold: floor,
     minRoleFit: settings.minRoleFit,
   };
 }

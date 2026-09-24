@@ -123,7 +123,7 @@ export const rangeKey = (range) =>
  * times of its first and last match.
  */
 export function describeData(files, { sampleWindows = {} } = {}) {
-  const { matchups, positions, lanes, synergies, timings } = files;
+  const { matchups, positions, lanes, synergies, timings, calibration } = files;
   const read = (file) => (file?.generatedAt ? Date.parse(file.generatedAt) : null);
   const rows = [];
 
@@ -185,6 +185,16 @@ export function describeData(files, { sampleWindows = {} } = {}) {
     window: sampleWindow(timings),
     read: read(timings),
     sample: timings ? `${amount(timings.matches)} matches` : null,
+  });
+  // Fitted from games older than the two samples above, so it is dated the same way.
+  rows.push({
+    key: "calibration",
+    what: "Win model",
+    source: "OpenDota",
+    file: calibration,
+    window: sampleWindow(calibration),
+    read: read(calibration),
+    sample: calibration ? `${amount(calibration.matches)} matches` : null,
   });
 
   return rows;

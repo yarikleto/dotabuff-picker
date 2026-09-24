@@ -26,12 +26,24 @@
 import { spawn } from "node:child_process";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEntries } from "./roster.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = join(ROOT, "public", "data");
 const SCRIPTS = join(ROOT, "scripts");
+
+/**
+ * Node flags for a step that runs the app's own TypeScript — see
+ * scripts/ts-resolve.mjs. A file URL rather than a path, because `--import`
+ * refuses a bare Windows path.
+ */
+const TS_NODE_ARGS = [
+  "--experimental-strip-types",
+  "--no-warnings",
+  "--import",
+  pathToFileURL(join(SCRIPTS, "register-ts-resolve.mjs")).href,
+];
 
 // ---------------------------------------------------------------- the steps
 
@@ -141,6 +153,21 @@ const STEPS = [
     },
   },
   {
+    key: "calibrate",
+    what: "what a draft is worth — the win-chance model, fitted on OpenDota games",
+    script: "calibrate.mjs",
+    args: [],
+    nodeArgs: TS_NODE_ARGS,
+    // After every collector: it fits the model on the files they just wrote,
+    // from games older than the synergy and timing samples.
+    describe: () =>
+      describeJson("calibration.json", (d) => [
+        `${thousands(d.matches)} matches`,
+        `log-loss ${Number(d.holdout?.logLoss).toFixed(4)} vs ${Number(d.holdout?.baseline).toFixed(4)}`,
+        `range ${Math.round((d.range?.[0] ?? 0) * 100)}–${Math.round((d.range?.[1] ?? 0) * 100)}%`,
+      ]),
+  },
+  {
     key: "readme",
     what: "the README's badges and data table, from the files above",
     script: "readme.mjs",
@@ -219,7 +246,7 @@ function runStep(step) {
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      [join(SCRIPTS, step.script), ...step.args, ...forwarded],
+      [...(step.nodeArgs ?? []), join(SCRIPTS, step.script), ...step.args, ...forwarded],
       { stdio: "inherit" },
     );
     child.on("error", reject);

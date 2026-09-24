@@ -3,7 +3,7 @@ import type { DraftAnalysis, LaneReport, LineupSlot, PairEdge, StageReport } fro
 
 export interface DraftInsight {
   id: string;
-  kind: "timing" | "lane" | "threat" | "opportunity" | "synergy";
+  kind: "roles" | "timing" | "lane" | "threat" | "opportunity" | "synergy";
   tone: "good" | "bad" | "neutral";
   label: string;
   title: string;
@@ -35,6 +35,12 @@ export interface DraftBriefing {
 
 export const allMatchups = (analysis: DraftAnalysis): PairEdge[] => analysis.lanes.flatMap((l) => l.pairs);
 const signed = (n: number) => formatSigned(n, 1);
+
+/** Points of win chance the seats must cost before the headline leads with them. */
+const ROLES_HEADLINE = 5;
+/** And before the playbook names them. */
+const ROLES_INSIGHT = 2;
+
 const names = (slots: LineupSlot[]) => slots.map((s) => s.name).join(" + ");
 
 /** Plans are interpretations of measured trends, never invented ability or item advice. */
@@ -59,9 +65,23 @@ export function buildBriefing(a: DraftAnalysis): DraftBriefing {
   const favorableLanes = readyLanes.filter((l) => l.outcome!.result >= 3)
     .sort((x, y) => y.outcome!.result - x.outcome!.result);
 
+  // The seats, from the same model as the headline: when they are the largest
+  // cost on the board, no lane or timing plan is the first thing to say.
+  const roles = a.win?.parts.find((p) => p.group === "roles") ?? null;
+  const rolesLead =
+    roles !== null &&
+    roles.points <= -ROLES_HEADLINE &&
+    (a.win?.parts.every((p) => p.points >= roles.points) ?? false);
+
   let title = "Find your edge. Make a plan.";
   let description = "Use the individual matchups to choose your fights; the draft score alone cannot tell you how to play.";
-  if (!a.complete) {
+  if (rolesLead && roles) {
+    const reason = a.win?.reasons.roles ?? "Your seats cost more than anything else on the board";
+    title = "Fix the roles first.";
+    description =
+      `${reason}. That costs about ${Math.round(-roles.points)} points of win chance — ` +
+      "more than anything else on the board.";
+  } else if (!a.complete) {
     title = "The plan is still taking shape.";
     description = `${a.sides.mine} of your picks and ${a.sides.enemy} of theirs are in. These insights describe the heroes shown; remaining picks can change the plan.`;
   } else if (timingComplete && firstWindow) {
@@ -81,6 +101,33 @@ export function buildBriefing(a: DraftAnalysis): DraftBriefing {
   } else if (pressuredLanes.length >= 2) {
     title = "Protect the opening. Keep your options.";
     description = `${pressuredLanes.length} lanes face statistical pressure. Plan support coverage and recovery space before committing to the lanes.`;
+  }
+
+  if (roles && roles.points <= -ROLES_INSIGHT && a.win) {
+    const worst = [...a.win.roles.mine.seats].sort((x, y) => x.delta - y.delta)[0];
+    // The seat rolesReason names, so the title agrees with the Roles reason
+    // beside it: the rarest seat for its hero, else one that costs a lot even
+    // for a hero who plays it often. A seat can be negative without either.
+    const offRole = a.win.roles.mine.offRole[0] ?? (worst && worst.delta <= -3 ? worst : undefined);
+    // The evidence names the title's hero, or the costliest seat under the generic title.
+    const shown = offRole ?? worst;
+    insights.push({
+      id: "roles",
+      kind: "roles",
+      tone: "bad",
+      label: "ROLES",
+      title:
+        offRole?.position
+          ? `${offRole.name} is out of position at ${offRole.position}`
+          : "Your seats are costing you",
+      action: offRole
+        ? "Open Rebalance for seatings they actually play. If nobody can move, expect that seat to lose more of its games and plan support around it."
+        : "Some of your heroes win less in these seats than they do overall; the Roles card in Deep dive shows which.",
+      evidence:
+        (shown && shown.seatWinRate !== null && shown.winRate !== null
+          ? `${shown.name} wins ${shown.seatWinRate.toFixed(1)}% at ${shown.position} against ${shown.winRate.toFixed(1)}% overall. `
+          : "") + `The win-chance model prices your seats at ${signed(roles.points)} points.`,
+    });
   }
 
   if (timingComplete && bestWindow && firstWindow) {

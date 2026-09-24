@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MAX_SEAT_COST, arrangementId, rebalance, rebalanceReadiness, scoreArrangement } from "./rebalance.ts";
+import {
+  CHANCE_GAIN,
+  MAX_SEAT_CHANCE_COST,
+  MAX_SEAT_COST,
+  arrangementId,
+  rebalance,
+  rebalanceReadiness,
+  scoreArrangement,
+} from "./rebalance.ts";
+import type { Calibration } from "./winModel.ts";
 import { buttonLabel, costOf, describeOption, headlineFor } from "./rebalanceCopy.ts";
 import { laneScoreboard } from "./analysis.ts";
 import { POSITIONS } from "./roles.ts";
@@ -817,4 +826,142 @@ test("a seat reading moves what an arrangement is worth", () => {
       advantage(data, board) - advantage(data, swap),
     "the seat reading is an argument for leaving beta where he is",
   );
+});
+
+// ---------------------------------------------------------------- win chance
+
+const CALIBRATION: Calibration = {
+  generatedAt: "2026-09-23T00:00:00.000Z",
+  matches: 300_000,
+  matchIdRange: null,
+  tau: 1.5,
+  weights: {
+    matchups: 0.046,
+    cohesion: 0.018,
+    heroes: 0.052,
+    seatPenalty: 0.028,
+    seatBonus: 0.02,
+    roleDeficit: -0.08,
+    timing: 0.01,
+  },
+  range: [0.15, 0.85],
+  inputs: {},
+  holdout: null,
+  reliability: [],
+};
+
+test("with a calibration an arrangement is scored by its win chance", () => {
+  const calibrated: Dataset = { ...makeDataset(), calibration: CALIBRATION };
+  const score = scoreArrangement(calibrated, draft, settings, { picks: draft.mine, lanePlan: "standard" });
+  assert.ok(score.chance !== null && score.chance > 0 && score.chance < 100);
+  assert.equal(score.total, score.chance);
+  const plain = scoreArrangement(data, draft, settings, { picks: draft.mine, lanePlan: "standard" });
+  assert.equal(plain.chance, null, "without one it is the objective it always was");
+  assert.ok(Math.abs(plain.total - (plain.advantage + plain.fit + plain.lanes)) < 1e-12);
+});
+
+test("a lane swap leaves the win chance where it was", () => {
+  const calibrated: Dataset = { ...makeDataset(), calibration: CALIBRATION };
+  const standard = scoreArrangement(calibrated, draft, settings, { picks: draft.mine, lanePlan: "standard" });
+  const swapped = scoreArrangement(calibrated, draft, settings, { picks: draft.mine, lanePlan: "swapped" });
+  assert.equal(swapped.chance, standard.chance);
+});
+
+test("a stranded carry is put back, and the gain is counted in points of win chance", () => {
+  const calibrated: Dataset = { ...makeDataset(), calibration: CALIBRATION };
+  const stranded: DraftView = {
+    ...draft,
+    mine: [pick("alpha", 2), pick("beta", 3), pick("carry", 4), pick("sup4", 1), pick("sup5", 5)],
+  };
+  const report = rebalance(calibrated, stranded, settings)!;
+  assert.ok(report.current.chance! < 50, `the board reads ${report.current.chance}`);
+  assert.equal(report.threshold, CHANCE_GAIN);
+  assert.equal(report.best?.reason, "seat");
+  assert.ok(report.best!.gain.total > 5, `putting them back is worth ${report.best!.gain.total}`);
+  assert.equal(report.best!.gain.total, report.best!.gain.chance);
+  assert.equal(headlineFor(report.best!).unit, "win chance");
+});
+
+/**
+ * A board whose one stranded hero the model has no quarrel with.
+ *
+ * SUP4 plays position 5 in 3% of his games — under the 5% role threshold, so
+ * the panel calls him off-role there — and the few he played went well: his
+ * record at 5 is stated as `atFive`, above his own 50. SUP5 plays 4 often
+ * enough to be seated there. The only repair is the two trading back, and what
+ * it costs is SUP4's good record at 5, at the model's seat-bonus weight: the
+ * shape of a real repair that costs chance, which is never the stranded seat
+ * itself (the model charges for that) but something the trade gives up.
+ */
+function thinSeatBoard(atFive: number): { data: Dataset; draft: DraftView } {
+  const set: Dataset = { ...makeDataset(), calibration: CALIBRATION };
+  set.heroes = set.heroes.map((h) => {
+    if (h.slug === "sup4") {
+      return hero("sup4", { 4: 0.97, 5: 0.03 }, undefined, {
+        ...h.positionWinRate,
+        4: 50,
+        5: atFive,
+      });
+    }
+    if (h.slug === "sup5") {
+      return hero("sup5", { 5: 0.9, 4: 0.1 }, undefined, { ...h.positionWinRate, 4: 50, 5: 50 });
+    }
+    return h;
+  });
+  set.bySlug = new Map(set.heroes.map((h) => [h.slug, h]));
+  return {
+    data: set,
+    draft: {
+      ...draft,
+      mine: [pick("alpha", 2), pick("beta", 3), pick("carry", 1), pick("sup4", 5), pick("sup5", 4)],
+    },
+  };
+}
+
+test("a calibrated seat repair is held to a ceiling in points of win chance, not the signal's", () => {
+  // The bug: the search moved onto the win chance and kept `MAX_SEAT_COST`, a
+  // bound set on the comparison signal, reading it as two points of win chance.
+  // Real repairs cost more than that often enough (see the constant), and the
+  // panel then answered "no rearrangement of these five fixes it" about a board
+  // one trade from fixed.
+  const { data: thin, draft: board } = thinSeatBoard(57);
+  const report = rebalance(thin, board, settings)!;
+
+  assert.deepEqual(report.offRole.map((seat) => `${seat.name}@${seat.position}`), ["SUP4@5"]);
+  const fix = report.seatFixes[0];
+  assert.ok(fix, "the way back is offered");
+  assert.deepEqual(
+    fix!.moves.map((m) => `${m.name} ${m.from}→${m.to}`),
+    ["SUP4 5→4", "SUP5 4→5"],
+  );
+  assert.ok(
+    fix!.gain.total < -MAX_SEAT_COST,
+    `at a price the old reading refused: ${fix!.gain.total.toFixed(2)} points of win chance`,
+  );
+  assert.ok(fix!.gain.total > -MAX_SEAT_CHANCE_COST, "and one the calibrated ceiling allows");
+  assert.equal(report.best, fix, "so it leads the panel");
+  assert.ok(
+    report.swaps.some((s) => s.id === fix!.id && s.reason === "seat"),
+    "and the one-trade list carries it too",
+  );
+});
+
+test("a calibrated seat repair dearer than the ceiling is still refused", () => {
+  // The other side of the same bound: the stranded seat is named, and nothing is
+  // offered, once putting him back costs more than the model charges for a
+  // hero in the thinnest seats.
+  const { data: thin, draft: board } = thinSeatBoard(64);
+  const report = rebalance(thin, board, settings)!;
+  const back = scoreArrangement(thin, board, settings, {
+    picks: [pick("alpha", 2), pick("beta", 3), pick("carry", 1), pick("sup4", 4), pick("sup5", 5)],
+    lanePlan: "standard",
+  });
+
+  assert.ok(
+    back.total - report.current.total <= -MAX_SEAT_CHANCE_COST,
+    `the repair costs ${(report.current.total - back.total).toFixed(2)} points`,
+  );
+  assert.deepEqual(report.offRole.map((seat) => seat.name), ["SUP4"], "the seat is still named");
+  assert.deepEqual(report.seatFixes, []);
+  assert.ok(report.swaps.every((s) => s.reason !== "seat"));
 });

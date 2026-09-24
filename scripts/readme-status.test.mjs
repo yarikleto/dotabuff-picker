@@ -232,5 +232,22 @@ test("a README without its blocks reports both badges and every row", () => {
   const drift = readmeDrift("# nothing generated here", { files: FILES, heroes: 2 });
   assert.match(drift.join("\n"), /collected badge should say "Data collected Sep 19, 2026"/);
   assert.match(drift.join("\n"), /heroes badge should say 2/);
-  assert.equal(drift.filter((d) => d.startsWith("the data table has no")).length, 5);
+  assert.equal(drift.filter((d) => d.startsWith("the data table has no")).length, 6);
+});
+
+test("the win model is dated by its match ids, like the other OpenDota samples", () => {
+  const withModel = {
+    ...FILES,
+    calibration: { generatedAt: "2026-09-23T10:00:00.000Z", matches: 301_000, matchIdRange: [50, 99] },
+  };
+  const windows = { ...WINDOWS, "50-99": { from: at("2026-09-16T00:00:00Z"), to: at("2026-09-17T00:00:00Z") } };
+  const row = describeData(withModel, { sampleWindows: windows }).find((r) => r.key === "calibration");
+  assert.equal(row.what, "Win model");
+  assert.equal(row.source, "OpenDota");
+  assert.equal(row.sample, "301,000 matches");
+  assert.equal(row.window.from, windows["50-99"].from);
+  assert.match(
+    dataTable(describeData(FILES, { sampleWindows: WINDOWS }), PATCHES),
+    /\| Win model \| OpenDota \| not collected yet \|/,
+  );
 });

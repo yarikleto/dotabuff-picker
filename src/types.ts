@@ -1,4 +1,5 @@
 import type { CounterModel, LaneModel } from "./lib/lanes";
+import type { Calibration } from "./lib/winModel";
 
 export type HeroAttr = "str" | "agi" | "int" | "uni";
 
@@ -275,6 +276,12 @@ export interface Dataset {
   positionBands?: RankBand[];
   /** The band whose positions are in place, or null for the Dotabuff reconstruction. */
   rankBand?: RankBand | null;
+  /**
+   * The dataset as loaded, before `withRankBand` put a band in place, so the
+   * win chance can be read at the band it was fitted on whatever band is on
+   * screen — see `atRankBand`. Absent on the loaded dataset itself.
+   */
+  unbanded?: Dataset;
   positionsGeneratedAt?: string | null;
   /**
    * STRATZ's lane outcomes, fitted once at load — see `buildLaneModel`. Absent
@@ -304,6 +311,12 @@ export interface Dataset {
   timingShape: TimingShape | null;
   /** How many matches the timing numbers were built from. */
   timingMatches: number;
+  /**
+   * The win-chance model's weights, from public/data/calibration.json — see
+   * `readCalibration`. Null or absent without the file, and the analysis then
+   * falls back to the comparison signal.
+   */
+  calibration?: Calibration | null;
   /** Populated when the dataset failed to load. */
   error: string | null;
 }
@@ -445,10 +458,24 @@ export interface Suggestion {
 
 /** What one hypothetical pick does to the whole draft read. */
 export interface DraftImpact {
-  /** Headline advantage before the pick; null when there was nothing to read. */
+  /**
+   * What `before` and `after` are measured in: points of win chance (0–100)
+   * when the dataset carries a calibration, the signed comparison signal
+   * otherwise.
+   */
+  unit: "chance" | "points";
+  /** Headline figure before the pick; null when there was nothing to read. */
   before: number | null;
-  /** Headline advantage with the hero on the board. */
+  /** Headline figure with the hero on the board. */
   after: number;
+  /**
+   * `before` and `after` as the headline prints them, when `unit` is "chance":
+   * a whole percent inside the calibrated range and a bound beyond it.
+   * `inRange` is whether both ends are inside — the move between them is only
+   * worth printing then, since outside it is the difference of two figures
+   * the headline refuses to show.
+   */
+  shown?: { before: string | null; after: string; inRange: boolean };
   /** The lane the pick moves most, when it moves one past the noise floor. */
   lane: { label: string; delta: number; after: number } | null;
 }
