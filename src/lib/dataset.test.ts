@@ -143,3 +143,31 @@ test("the calibration survives a dataset with no matchups", () => {
   const empty = { ...files(CALIBRATION_FILE), matchupFile: { data: null } } as Parameters<typeof buildDataset>[0];
   assert.equal(buildDataset(empty).calibration?.matches, 300_000);
 });
+
+/**
+ * The roster takes its attributes from OpenDota; the Dotabuff scrape once read
+ * every hero as universal off a changed page, and the grid grouped all of them
+ * under one heading. A known hero keeps the roster's attribute, whatever the
+ * matchup file says; a hero the roster lacks still gets the file's.
+ */
+test("the roster's attribute wins over the matchup file's", () => {
+  const { bySlug } = buildDataset({
+    matchupFile: {
+      data: {
+        heroes: [
+          { slug: "axe", name: "Axe", attr: "uni" },
+          { slug: "slark", name: "Slark", attr: "uni" },
+          { slug: "newcomer", name: "Newcomer", attr: "agi" },
+        ],
+        matchups: {},
+      },
+    },
+    synergyFile: { data: null },
+    timingFile: { data: null },
+    positionFile: { data: null },
+    laneFile: { data: null },
+  });
+  assert.equal(bySlug.get("axe")?.attr, "str");
+  assert.equal(bySlug.get("slark")?.attr, "agi");
+  assert.equal(bySlug.get("newcomer")?.attr, "agi");
+});

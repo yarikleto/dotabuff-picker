@@ -322,9 +322,13 @@ async function buildRoster() {
         log(`  + new hero on Dotabuff: ${name} (${slug})`);
       }
     }
+    // The roster's attributes come from OpenDota. Dotabuff's are read off the
+    // page layout, which once put every hero under universal, so they only
+    // fill in for a hero the roster lacks.
+    const known = new Set(baseline.map((h) => h.slug));
     for (const [slug, attr] of attrs) {
       const hero = bySlug.get(slug);
-      if (hero) hero.attr = attr;
+      if (hero && !known.has(slug)) hero.attr = attr;
     }
     let statCount = 0;
     for (const [slug, s] of stats) {

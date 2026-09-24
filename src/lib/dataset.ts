@@ -138,7 +138,9 @@ function mergeHeroes(raw: RawPayload["heroes"]): Hero[] {
     const hero: Hero = {
       slug: entry.slug,
       name: entry.name || existing?.name || entry.slug,
-      attr: entry.attr ? asAttr(entry.attr) : (existing?.attr ?? "uni"),
+      // The roster's attribute comes from OpenDota; the file's is scraped off
+      // Dotabuff's page layout, so it only fills in for a hero the roster lacks.
+      attr: existing?.attr ?? asAttr(entry.attr),
       steam: entry.steam || existing?.steam || entry.slug.replace(/-/g, "_"),
     };
     if (typeof entry.winRate === "number") hero.winRate = entry.winRate;
