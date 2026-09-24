@@ -440,14 +440,29 @@ export function Rebalance({
 
         <footer className="rebalance-foot muted">
           <p>
-            Single trades first — all of them — then one arrangement per amount of upheaval.
-            Figures are percentage points of win rate: <strong>draft</strong> is the number on the
-            Draft analysis button — matchups, cohesion and timing, all measured over whole games;{" "}
-            <strong>lanes</strong> is what the laning stage is worth, from how the pairings standing
-            opposite each other have gone in lane, each side&apos;s record in the lane they would be
-            standing in, and how the two duos work together;{" "}
-            <strong>seats</strong> is each hero&apos;s record in the position they would take;{" "}
-            <strong>overall</strong> is the three together, which is what the lists are ranked on.
+            Single trades first — all of them — then one arrangement per amount of upheaval.{" "}
+            {report.current.chance !== null ? (
+              <>
+                Figures are points of win chance, the same model as the Draft analysis headline: each
+                option&apos;s gain is split into the parts of the win chance that moved — roles,
+                matchups, cohesion, heroes and timing — and they add up to the gain. The lane read
+                beside them is what the laning stage is worth, from how the pairings standing opposite
+                each other have gone in lane, each side&apos;s record in the lane they would be
+                standing in, and how the two duos work together; it is printed for information and is
+                not in the figure, which is ranked on the win chance alone. An option listed for a lane
+                is there because it takes a losing lane out of the fire.
+              </>
+            ) : (
+              <>
+                Figures are percentage points of win rate: <strong>draft</strong> is the number on the
+                Draft analysis button — matchups, cohesion and timing, all measured over whole games;{" "}
+                <strong>lanes</strong> is what the laning stage is worth, from how the pairings standing
+                opposite each other have gone in lane, each side&apos;s record in the lane they would be
+                standing in, and how the two duos work together;{" "}
+                <strong>seats</strong> is each hero&apos;s record in the position they would take;{" "}
+                <strong>overall</strong> is the three together, which is what the lists are ranked on.
+              </>
+            )}
           </p>
           <p>
             What the model cannot see is who on your team can actually play the seat, so read the
