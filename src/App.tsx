@@ -677,7 +677,7 @@ export default function App() {
             </span>
           )}
           {dataset.hasData && !dataset.hasSynergies && (
-            <span className="tag tag-warn" title="Run `npm run synergy` to add team synergy data">
+            <span className="tag tag-warn" title="Run “npm run synergy” to add team synergy data">
               no synergy data
             </span>
           )}

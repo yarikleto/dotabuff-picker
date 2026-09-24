@@ -346,7 +346,7 @@ function FaceRow({
    * the moment a role filter is on, because a row that vanishes looks like a bug
    * and leaves the reader no chips to click their way back out with.
    */
-  empty?: string;
+  empty?: React.ReactNode;
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
   // The card layer is reused as the pointer moves between tiles, so the hover
@@ -893,7 +893,7 @@ export function HeroCard({
               ? `No pos ${rolePosition} hero pairs with ${hero.name}` +
                 (seat ? ` at pos ${seat}` : "") +
                 " above the sample floor."
-              : "Run `npm run synergy` to add pairing data."
+              : <>Run <code>npm run synergy</code> to add pairing data.</>
             : undefined
         }
         faces={partners.map((p) => ({
@@ -980,7 +980,7 @@ export function HeroCard({
               ? allies
                 ? "Nothing above the sample floor."
                 : `Add ${mode === "ban" ? "enemy" : "your"} picks to see pairings.`
-              : "Run `npm run synergy` to add pairing data."}
+              : <>Run <code>npm run synergy</code> to add pairing data.</>}
           </p>
         ) : (
           <ul className="hc-rows">

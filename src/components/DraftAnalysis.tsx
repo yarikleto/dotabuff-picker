@@ -754,7 +754,7 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
             <p className="empty">
               {hasTimings
                 ? "None of the drafted heroes have timing data yet."
-                : "Run `npm run timings` once to collect win rate by game length, then reload."}
+                : <>Run <code>npm run timings</code> once to collect win rate by game length, then reload.</>}
             </p>
           )}
         </article>

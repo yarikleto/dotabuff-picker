@@ -20,7 +20,7 @@ export function RankFilter({ value, available, onChange }: RankFilterProps) {
     available.length
       ? `${RANK_BAND_LABEL[band]}: win rates, positions, seat records and pick rates from STRATZ. ` +
         "Counters, synergies, lanes and timings are all ranks whichever you pick."
-      : "Run `npm run positions` to read hero figures from STRATZ by rank.";
+      : "Run “npm run positions” to read hero figures from STRATZ by rank.";
 
   return (
     <div className="seg seg-sm" role="group" aria-label="Rank">
