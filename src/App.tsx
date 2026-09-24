@@ -458,7 +458,15 @@ export default function App() {
   const impactFor = useCallback(
     (slug: string, position: Position | null) =>
       dataset.hasData
-        ? pickImpact(dataset, draft, settings, slug, position, sort === "ban" ? "enemy" : "mine")
+        ? pickImpact(
+            dataset,
+            draft,
+            settings,
+            slug,
+            position,
+            sort === "ban" ? "enemy" : "mine",
+            TEAM_SIZE,
+          )
         : null,
     [dataset, draft, settings, sort],
   );

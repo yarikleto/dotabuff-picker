@@ -1567,6 +1567,9 @@ export function toMarkdown(analysis: DraftAnalysis): string {
  * Deliberately the same `draftBalance`/`analyseDraft` arithmetic rather than a
  * cheaper approximation of it: a preview that disagreed with the number it
  * previews would be worse than no preview.
+ *
+ * Null when the side is already full: a sixth hero is not a pick anyone can
+ * make, and previewing the board it would leave describes no real draft.
  */
 export function pickImpact(
   data: Dataset,
@@ -1575,7 +1578,9 @@ export function pickImpact(
   slug: string,
   position: Position | null,
   side: "mine" | "enemy" = "mine",
+  teamSize = 5,
 ): DraftImpact | null {
+  if (draft[side].length >= teamSize) return null;
   if (draft[side].some((p) => p.slug === slug)) return null;
 
   const added: DraftPick = { slug, position };

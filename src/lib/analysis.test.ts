@@ -518,6 +518,21 @@ test("the preview reads the enemy's seat for bans, and refuses a repeat", () => 
   assert.ok(pickImpact(data, board, settings, "ally", 1, "enemy"));
 });
 
+test("a full side has no pick left to preview", () => {
+  // A sixth hero is not a pick anyone can make, so the card must not quote a
+  // board that cannot exist.
+  assert.equal(pickImpact(data, fullDraft, settings, "villain", 1, "mine"), null);
+  assert.equal(pickImpact(data, fullDraft, settings, "ally", 1, "enemy"), null);
+
+  // …while the side that still has a seat open is a real question.
+  const theirsOpen = { ...fullDraft, enemy: fullDraft.enemy.slice(0, 4) };
+  assert.ok(pickImpact(data, theirsOpen, settings, "ally", 5, "enemy"));
+  assert.equal(pickImpact(data, theirsOpen, settings, "villain", 1, "mine"), null);
+
+  // The size is the caller's, as it is for `analyseDraft`.
+  assert.equal(pickImpact(data, midOnly, settings, "counter", 3, "mine", 1), null);
+});
+
 test("the first hero on an empty board has no before to compare against", () => {
   const empty = { mine: [] as ReturnType<typeof pick>[], enemy: [pick("villain", 1)], banned: [] };
   const impact = pickImpact(data, empty, settings, "counter", 3)!;
