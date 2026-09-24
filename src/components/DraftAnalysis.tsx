@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { buildBriefing } from "../lib/draftInsights";
 import { EvidenceStrip, GamePlan, MatchupMap } from "./DraftBriefing";
-import type { Dataset } from "../types";
+import type { Dataset, Hero } from "../types";
+import { calibrationDrift } from "../lib/winModel";
+import type { SeatReport } from "../lib/winModel";
 import { HeroPortrait } from "./HeroPortrait";
 import { useSheetFocus } from "./useSheetFocus";
 import { formatSigned } from "../lib/scoring";
@@ -557,6 +559,36 @@ function SynergyRow({ pair, side }: { pair: SynergyPair; side: 1 | -1 }) {
   );
 }
 
+/** One hero's seat: where they are booked, how often they play there, and what it does to their record. */
+function SeatRow({ seat, hero }: { seat: SeatReport; hero: Hero | undefined }) {
+  const share =
+    seat.share === null
+      ? null
+      : seat.share < 0.1
+        ? (seat.share * 100).toFixed(1)
+        : String(Math.round(seat.share * 100));
+  return (
+    <div className="hero-row">
+      {hero && <HeroPortrait hero={hero} className="portrait-sm" />}
+      <div className="hero-row-body">
+        <div className="lane-top">
+          <span className="lane-name">
+            {seat.name}
+            {seat.position ? <span className="muted"> · {seat.position}</span> : null}
+          </span>
+          <span className={`lane-value ${tone(seat.delta)}`}>{formatSigned(seat.delta, 1)}</span>
+        </div>
+        <p className="lane-note muted">
+          {share === null ? "no position data" : `${share}% of their games`}
+          {seat.seatWinRate !== null && seat.winRate !== null
+            ? ` · ${seat.seatWinRate.toFixed(1)}% here, ${seat.winRate.toFixed(1)}% overall`
+            : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /**
  * The draft taken apart.
  *
@@ -578,6 +610,7 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
   const [compact, setCompact] = useState(false);
   const [view, setView] = useState<"plan" | "matchups" | "details">("plan");
   const briefing = useMemo(() => buildBriefing(analysis), [analysis]);
+  const drift = useMemo(() => calibrationDrift(data), [data]);
   /**
    * Confirmation for the copy button. A clipboard write is silent, and a
    * button that looks identical before and after being pressed leaves the
@@ -624,6 +657,22 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
               title="Lanes are swapped: your safe duo walked into their safe lane and your offlane duo into theirs, so carry meets carry. Their heroes have not moved — only yours are read against a different lane record."
             >
               lanes swapped
+            </span>
+          )}
+          {!analysis.win && (
+            <span
+              className="tag tag-warn"
+              title="public/data/calibration.json is missing or unreadable, so the headline is a comparison signal between the two line-ups rather than a win chance. `npm run calibrate` builds it."
+            >
+              uncalibrated
+            </span>
+          )}
+          {analysis.win && drift.length > 0 && (
+            <span
+              className="tag tag-warn"
+              title={`The win-chance weights were fitted against different ${drift.join(", ")} files from the ones loaded now. \`npm run calibrate\` refits them.`}
+            >
+              calibration predates data
             </span>
           )}
           <span
@@ -796,6 +845,43 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
           ))}
         </article>
 
+        {analysis.win && (
+          <article className="analysis-card">
+            <h3>Roles</h3>
+            <p className="analysis-card-sub muted">
+              {"Each hero's seat, the share of their games played there, and their win rate there against their own. "}
+              {`Seats move the win chance by ${formatSigned(
+                analysis.win.parts.find((p) => p.group === "roles")?.points ?? 0,
+                1,
+              )} points.`}
+            </p>
+            <h4 className="analysis-sub-head">
+              {`Ours${
+                analysis.win.roles.mine.noSupports
+                  ? " — nobody supports"
+                  : analysis.win.roles.mine.noCores
+                    ? " — nobody farms"
+                    : ""
+              }`}
+            </h4>
+            {analysis.win.roles.mine.seats.map((seat) => (
+              <SeatRow key={seat.slug} seat={seat} hero={data.bySlug.get(seat.slug)} />
+            ))}
+            <h4 className="analysis-sub-head">
+              {`Theirs${
+                analysis.win.roles.theirs.noSupports
+                  ? " — nobody supports"
+                  : analysis.win.roles.theirs.noCores
+                    ? " — nobody farms"
+                    : ""
+              }`}
+            </h4>
+            {analysis.win.roles.theirs.seats.map((seat) => (
+              <SeatRow key={`them-${seat.slug}`} seat={seat} hero={data.bySlug.get(seat.slug)} />
+            ))}
+          </article>
+        )}
+
         <article className="analysis-card">
           <h3>Pairings that matter</h3>
           <h4 className="analysis-sub-head">Against us</h4>
@@ -868,9 +954,11 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
       <p className="analysis-foot muted" hidden={compact || view !== "details"}>
         Matchup and synergy edges are measured over whole games. Lane share describes lane wins
         plus half of draws; form describes game results from that lane. Timing skews are relative
-        to each hero’s own baseline. The composite draft score is a comparison signal, not a win
-        probability. Edges below {NOISE.toFixed(1)} points are treated as noise.
-
+        to each hero’s own baseline.{" "}
+        {analysis.win
+          ? `The win chance comes from a model fitted on ${analysis.win.matches.toLocaleString()} ranked games and checked on games it was not fitted on; it prices roles, matchups, cohesion, hero strength and timing, and nothing about the players.`
+          : "The composite draft score is a comparison signal, not a win probability."}{" "}
+        Edges below {NOISE.toFixed(1)} points are treated as noise.
       </p>
     </section>
   );

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Dataset, Hero } from "../types";
-import type { DraftAnalysis, LineupSlot, StageReport } from "../lib/analysis";
+import type { DraftAnalysis, DraftWin, LineupSlot, StageReport } from "../lib/analysis";
 import { allMatchups, type DraftBriefing as Briefing } from "../lib/draftInsights";
 import { NOISE, formatSigned } from "../lib/scoring";
 import { HeroPortrait } from "./HeroPortrait";
@@ -8,6 +8,21 @@ import { HeroPortrait } from "./HeroPortrait";
 const signed = (n: number) => formatSigned(n, 1);
 const tone = (n: number, floor = NOISE) => Math.abs(n) < floor ? "even" : n > 0 ? "good" : "bad";
 type Heroes = Map<string, Hero>;
+
+const winTone = (side: DraftWin["verdict"]["side"]) => (side === "even" ? "even" : side === "mine" ? "good" : "bad");
+const wholePct = (n: number) => `${Math.round(n * 100)}%`;
+
+/** The line under the chance: what drafts rated like this actually did, or why there is no such line. */
+function winEvidence(win: DraftWin): string {
+  if (!win.inRange) return `Model ${wholePct(win.chance)} · beyond the range the calibration can vouch for`;
+  if (win.evidence) {
+    return (
+      `Drafts rated ${wholePct(win.evidence.from)}–${wholePct(win.evidence.to)} won ` +
+      `${(win.evidence.actual * 100).toFixed(1)}% of ${win.evidence.games.toLocaleString()} line-ups it was not fitted on`
+    );
+  }
+  return `Calibrated on ${win.matches.toLocaleString()} ranked games`;
+}
 
 function Face({ slot, heroes }: { slot: LineupSlot; heroes: Heroes }) {
   const hero = heroes.get(slot.slug);
@@ -70,10 +85,15 @@ export function GamePlan({ analysis: a, briefing: b, heroes }: { analysis: Draft
   const hasMatchups = a.coverage.matchups > 0;
   const measuredLanes = a.lanes.filter((l) => l.key !== "map" && l.outcome).length;
   const threat = b.threats[0];
+  const win = a.win;
   return <div className="intel-overview">
     <div className="intel-strategy">
       <div><h2>{b.title}</h2><p>{b.description}</p></div>
-      <div className="intel-draft-score"><span className="intel-label">Draft edge</span><strong className={hasMatchups ? tone(a.advantage) : "even"}>{hasMatchups ? signed(a.advantage) : "—"}</strong><span>{hasMatchups ? a.verdict.label : "Insufficient matchup data"}</span><small>Comparison signal · not win probability</small></div>
+      {win ? (
+        <div className="intel-draft-score"><span className="intel-label">Win chance</span><strong className={winTone(win.verdict.side)}>{win.shown}</strong><span>{win.verdict.label}</span><small>{winEvidence(win)}</small></div>
+      ) : (
+        <div className="intel-draft-score"><span className="intel-label">Draft edge</span><strong className={hasMatchups ? tone(a.advantage) : "even"}>{hasMatchups ? signed(a.advantage) : "—"}</strong><span>{hasMatchups ? a.verdict.label : "Insufficient matchup data"}</span><small>Comparison signal · not win probability</small></div>
+      )}
     </div>
     <div className="intel-metrics">
       <div><span className="intel-label">Best timing</span><strong>{b.bestWindow?.short ?? (b.timingComplete ? "No clear edge" : "Unknown")}</strong><small>{b.bestWindow ? `${signed(b.bestWindow.edge)} relative timing skew` : b.timingComplete ? "No window clears the noise floor" : "Both lineups need full timing data"}</small></div>
@@ -90,9 +110,15 @@ export function GamePlan({ analysis: a, briefing: b, heroes }: { analysis: Draft
         </article>)}</div> : <div className="intel-empty">No measured edge clears the noise floor yet. Add picks or inspect the matchup map to see what is known.</div>}
       </section>
       <aside className="intel-timing-panel"><h3 className="sheet-section">Timing<span className="muted"> — pick a window</span></h3><TimingExplorer analysis={a} />
-        <div className="intel-score-parts"><h4 className="intel-label">What moves the draft score</h4>{[
-          ["Matchups", a.counter], ["Team chemistry", a.cohesionContribution], ["Early cover", a.earlyEdge],
-        ].map(([label, value]) => <div key={label}><span>{label}</span><strong className={tone(value as number)}>{signed(value as number)}</strong></div>)}<small>Weighted contributions; totals may differ by 0.1 after rounding.</small></div>
+        {win ? (
+          <div className="intel-score-parts"><h4 className="intel-label">What moves the win chance</h4>{[...win.parts].sort((x, y) => Math.abs(y.points) - Math.abs(x.points)).map((p) => (
+            <div key={p.group}><span>{p.label}{win.reasons[p.group] && <span className="intel-part-reason">{win.reasons[p.group]}</span>}</span><strong className={tone(p.points)}>{signed(p.points)}</strong></div>
+          ))}<small>Points of win chance against an even draft; together they make {Math.round(win.chance * 100)}%.</small></div>
+        ) : (
+          <div className="intel-score-parts"><h4 className="intel-label">What moves the draft score</h4>{[
+            ["Matchups", a.counter], ["Team chemistry", a.cohesionContribution], ["Early cover", a.earlyEdge],
+          ].map(([label, value]) => <div key={label}><span>{label}</span><strong className={tone(value as number)}>{signed(value as number)}</strong></div>)}<small>Weighted contributions; totals may differ by 0.1 after rounding.</small></div>
+        )}
       </aside>
     </div>
     <h3 className="sheet-section">Lanes<span className="muted">{a.lanePlan === "swapped" ? " — swapped: safe duo against safe duo" : " — standard deployment"}</span></h3>

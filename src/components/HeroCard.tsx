@@ -243,31 +243,32 @@ interface HeroCardProps {
  * often the right one — and where they do, this is the half a captain acts on.
  */
 function Impact({ impact, mode }: { impact: DraftImpact; mode: ScoreMode }) {
+  const chance = impact.unit === "chance";
   const move = impact.after - (impact.before ?? 0);
+  const shownMove = chance ? Math.round(move) : move;
   const arrow = mode === "ban" ? "if they take them" : "if you take them";
+  const label = chance ? "win chance " : "draft ";
+  const figure = (n: number) => (chance ? `${Math.round(n)}%` : formatSigned(n, 1));
+  const good = (n: number) => (chance ? n >= 50 : n >= 0);
   return (
     <section className="hc-section hc-impact">
       <h4>The board afterwards</h4>
       <p className="hc-impact-line">
         {impact.before === null ? (
           <>
-            <span className="muted">draft </span>
-            <strong className={impact.after >= 0 ? "good" : "bad"}>
-              {formatSigned(impact.after, 1)}
-            </strong>
+            <span className="muted">{label}</span>
+            <strong className={good(impact.after) ? "good" : "bad"}>{figure(impact.after)}</strong>
           </>
         ) : (
           <>
-            <span className="muted">draft </span>
-            <span className="hc-impact-from">{formatSigned(impact.before, 1)}</span>
+            <span className="muted">{label}</span>
+            <span className="hc-impact-from">{figure(impact.before)}</span>
             <span className="muted" aria-label="becomes">
               {" → "}
             </span>
-            <strong className={impact.after >= 0 ? "good" : "bad"}>
-              {formatSigned(impact.after, 1)}
-            </strong>
-            <span className={`hc-impact-move ${move >= 0 ? "good" : "bad"}`}>
-              {`(${formatSigned(move, 1)})`}
+            <strong className={good(impact.after) ? "good" : "bad"}>{figure(impact.after)}</strong>
+            <span className={`hc-impact-move ${shownMove >= 0 ? "good" : "bad"}`}>
+              {`(${formatSigned(shownMove, chance ? 0 : 1)})`}
             </span>
           </>
         )}
