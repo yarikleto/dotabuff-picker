@@ -6,7 +6,7 @@
 <p>
   <img alt="Data patch: 7.41e – 7.41f" src="https://img.shields.io/badge/data_patch-7.41e_%E2%80%93_7.41f-c9a227?style=flat-square&amp;logo=dota2&amp;logoColor=white">
   <a href="https://www.dota2.com/patches"><img alt="Latest Dota 2 patch" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fwww.dota2.com%2Fdatafeed%2Fpatchnoteslist%3Flanguage%3Denglish&amp;query=%24.patches%5B-1%3A%5D.patch_number&amp;label=latest+Dota+patch&amp;color=3b4654&amp;style=flat-square&amp;logo=dota2&amp;logoColor=white&amp;cacheSeconds=3600"></a>
-  <img alt="Data collected Sep 19, 2026" src="https://img.shields.io/badge/collected-Sep_19%2C_2026-3b4654?style=flat-square">
+  <img alt="Data collected Sep 24, 2026" src="https://img.shields.io/badge/collected-Sep_24%2C_2026-3b4654?style=flat-square">
   <img alt="heroes: 127" src="https://img.shields.io/badge/heroes-127-3b4654?style=flat-square">
   <br>
   <a href="#the-data"><img alt="Data from Dotabuff, STRATZ and OpenDota" src="https://img.shields.io/badge/data-Dotabuff_%C2%B7_STRATZ_%C2%B7_OpenDota-3b4654?style=flat-square"></a>
@@ -62,12 +62,12 @@ The derivation, the weights and the known blind spots are in
 <!-- data:start — written by `npm run readme` from public/data; change scripts/readme-status.mjs, not this block -->
 | Data | Source | Covers | Sample | Patch |
 | --- | --- | --- | --- | --- |
-| Counters | Dotabuff | read Sep 19, 2026 | 16,002 hero pairs | — |
-| Positions by rank | STRATZ | Aug 20 – Sep 16, 2026 | 12.8 million ranked matches | 7.41e – 7.41f |
-| Lanes by seat | STRATZ | Aug 20 – Sep 16, 2026 | 53,744 lane pairings | 7.41e – 7.41f |
-| Synergies | OpenDota | Sep 21 – Sep 22, 2026 | 463,156 matches | 7.41f |
-| Game length | OpenDota | Sep 21 – Sep 22, 2026 | 633,690 matches | 7.41f |
-| Win model | OpenDota | Sep 20 – Sep 21, 2026 | 418,183 matches | 7.41f |
+| Counters | Dotabuff | read Sep 24, 2026 | 16,002 hero pairs | — |
+| Positions by rank | STRATZ | Aug 27 – Sep 23, 2026 | 9.1 million ranked matches | 7.41e – 7.41f |
+| Lanes by seat | STRATZ | Aug 27 – Sep 23, 2026 | 50,456 lane pairings | 7.41e – 7.41f |
+| Synergies | OpenDota | Sep 23 – Sep 24, 2026 | 613,632 matches | 7.41f |
+| Game length | OpenDota | Sep 23 – Sep 24, 2026 | 613,472 matches | 7.41f |
+| Win model | OpenDota | Sep 22 – Sep 23, 2026 | 419,724 matches | 7.41f |
 <!-- data:end -->
 
 **Data patch** is worked out from the windows above against Valve's patch list:
