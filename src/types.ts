@@ -276,6 +276,12 @@ export interface Dataset {
   positionBands?: RankBand[];
   /** The band whose positions are in place, or null for the Dotabuff reconstruction. */
   rankBand?: RankBand | null;
+  /**
+   * The dataset as loaded, before `withRankBand` put a band in place, so the
+   * win chance can be read at the band it was fitted on whatever band is on
+   * screen — see `atRankBand`. Absent on the loaded dataset itself.
+   */
+  unbanded?: Dataset;
   positionsGeneratedAt?: string | null;
   /**
    * STRATZ's lane outcomes, fitted once at load — see `buildLaneModel`. Absent

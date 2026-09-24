@@ -1,5 +1,6 @@
 import { lanePair } from "./lanes";
 import { buildBriefing } from "./draftInsights";
+import { atRankBand } from "./positions";
 import { POSITION_LABEL, laneForPosition, laneOpponents, positionFit } from "./roles";
 import { NOISE, draftBalance, matchup, sharesLane, synergy } from "./scoring";
 import { rolesReason, winRead } from "./winModel";
@@ -1321,9 +1322,12 @@ function explainWin(
   board: Pick<DraftAnalysis, "threats" | "edges" | "mySynergyPairs" | "theirSynergyPairs" | "stages" | "lineups">,
 ): DraftWin {
   const part = (group: WinGroup) => win.parts.find((p) => p.group === group)?.points ?? 0;
+  // The win rates the Heroes part was priced on, which are the calibration's
+  // band and not necessarily the one on screen.
+  const priced = data.calibration ? atRankBand(data, data.calibration.rankBand) : data;
   const strongest = (slots: LineupSlot[]) =>
     slots
-      .map((slot) => ({ slot, winRate: data.bySlug.get(slot.slug)?.winRate }))
+      .map((slot) => ({ slot, winRate: priced.bySlug.get(slot.slug)?.winRate }))
       .filter((x): x is { slot: LineupSlot; winRate: number } => typeof x.winRate === "number")
       .sort((a, b) => b.winRate - a.winRate)[0];
 

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { attachPositionCounts, emptyDataset } from "./dataset.ts";
 import {
+  atRankBand,
   effectiveBand,
   estimateSeatPrior,
   positionsFromCounts,
@@ -175,6 +176,20 @@ test("a band the file lacks falls back to all ranks, and no file means no change
 
   const noFile = dataset([dragonKnight()], []);
   assert.equal(withRankBand(noFile, "divine"), noFile, "the very same object, so memoised readers keep their results");
+});
+
+test("a pinned band is read off the loaded dataset, whichever band is on screen, and worked out once", () => {
+  const loaded = dataset([dragonKnight()]);
+  const divine = withRankBand(loaded, "divine");
+  assert.equal(divine.unbanded, loaded);
+  assert.equal(withRankBand(divine, "all").unbanded, loaded, "never a band on top of a band");
+
+  const pinned = atRankBand(divine, "all");
+  assert.equal(pinned.rankBand, "all");
+  assert.deepEqual(pinned.bySlug.get("dragon-knight"), withRankBand(loaded, "all").bySlug.get("dragon-knight"));
+  assert.equal(atRankBand(loaded, "all"), pinned, "one view per loaded dataset and band");
+  assert.equal(atRankBand(pinned, "all"), pinned, "already there");
+  assert.equal(atRankBand(divine, "divine"), divine);
 });
 
 test("pick rate is each hero's share of the band's matches, ten heroes a match", () => {

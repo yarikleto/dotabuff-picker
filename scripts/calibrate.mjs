@@ -56,6 +56,12 @@ const options = {
   key: opt("key", process.env.OPENDOTA_API_KEY || ""),
 };
 
+/**
+ * The rank band the features are read at. Written into the file, and the app
+ * reads every chance at it whatever band its Tuning shows — see `modelData` in
+ * src/lib/winModel.ts.
+ */
+const RANK_BAND = "all";
 /** Candidates for the role-deficit threshold, in points per hero. */
 const TAUS = [0.5, 1, 1.5, 2, 2.5, 3];
 /** Weights no draft could explain the negative of: more of these never loses games. */
@@ -280,7 +286,7 @@ async function main() {
       positionFile: { data: files.positions },
       laneFile: { data: files.lanes },
     }),
-    "all",
+    RANK_BAND,
   );
   const priors = new Map(data.heroes.filter((h) => h.positions).map((h) => [h.slug, h.positions]));
   const idToSlug = await heroIds();
@@ -323,7 +329,7 @@ async function main() {
       "are the generatedAt of the data files the features were read from.",
     matches: result.matches,
     matchIdRange: [lo, hi],
-    rankBand: "all",
+    rankBand: RANK_BAND,
     inputs: {
       matchups: files.matchups.generatedAt ?? null,
       positions: files.positions?.generatedAt ?? null,

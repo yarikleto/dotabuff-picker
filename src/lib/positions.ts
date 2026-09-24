@@ -236,6 +236,9 @@ const bandGames = (hero: Hero, band: RankBand) =>
  * Pick rate moves with the band because it is the most rank-dependent figure
  * the ban list reads: Sniper is in 19% of matches at all ranks and 7% at
  * Immortal.
+ *
+ * The result keeps the loaded dataset as `unbanded`, so a reader pinned to one
+ * band whatever is on screen can get there — see `atRankBand`.
  */
 export function withRankBand(data: Dataset, band: RankBand): Dataset {
   const applied = effectiveBand(data, band);
@@ -264,5 +267,35 @@ export function withRankBand(data: Dataset, band: RankBand): Dataset {
     bySlug: new Map(heroes.map((h) => [h.slug, h])),
     hasPositions: heroes.some((h) => h.positions),
     rankBand: applied,
+    unbanded: data.unbanded ?? data,
   };
+}
+
+const bandViews = new WeakMap<Dataset, Map<RankBand, Dataset>>();
+
+/**
+ * The dataset as it reads at one rank band, whichever band it shows now.
+ *
+ * For the win chance, whose weights were fitted at one band and mean nothing
+ * at another. The band is applied to the loaded dataset, never on top of the
+ * one on screen, and each loaded dataset and band is worked out once and kept:
+ * the chance is read for every candidate in the pick list and every
+ * arrangement the Rebalance search tries, and a pass over the pool apiece
+ * would cost more than the reads themselves. The very same object comes back
+ * when `data` is already at that band.
+ */
+export function atRankBand(data: Dataset, band: RankBand): Dataset {
+  if (data.rankBand === band) return data;
+  const loaded = data.unbanded ?? data;
+  let views = bandViews.get(loaded);
+  if (!views) {
+    views = new Map();
+    bandViews.set(loaded, views);
+  }
+  let view = views.get(band);
+  if (!view) {
+    view = withRankBand(loaded, band);
+    views.set(band, view);
+  }
+  return view;
 }

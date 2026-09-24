@@ -84,7 +84,7 @@ Every feature is mine minus theirs, so swapping the line-ups turns `p` into
 | --- | --- |
 | Matchups | every cross pairing's damped Dotabuff advantage, pairs with ≥ 200 matches |
 | Cohesion | each side's pair synergies with the core/support cells as booked, pairs with ≥ 200 games |
-| Heroes | each hero's win rate − 50, in the rank band on screen |
+| Heroes | each hero's win rate − 50, at the rank band the calibration was fitted at |
 | Seat penalty, seat bonus | each hero's `positionWinRate` at the booked seat minus their own win rate, split by sign |
 | Role deficit | `min(0, S/5 + τ)²` per side, `S` the side's summed seat deltas |
 | Timing | the early-cover shortfall, theirs minus mine |
@@ -120,6 +120,12 @@ games were worth no less than the rest.
 The Tuning sliders do not move the chance. The weights were fitted under fixed
 sample floors (`WIN_MODEL_FLOORS`), and a probability computed under others
 would no longer be the calibrated one. The sliders tune the pick list.
+
+Nor does the rank band. The chance, and the seats the Roles card prints, are
+always read at the band `calibration.json` records (`rankBand`, all ranks)
+whatever band Tuning shows: a band's win rates are another sample with another
+spread, and the five-cores draft's Heroes part reads +4.4 points at all ranks
+but −6.3 at Immortal. The band goes on choosing the pick list's positions.
 
 ### The calibration
 

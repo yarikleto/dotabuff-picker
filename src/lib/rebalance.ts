@@ -1,7 +1,7 @@
 import { NOISE, draftBalance } from "./scoring";
 import { laneScoreboard, verdictFor } from "./analysis";
 import { POSITIONS, canPlay, positionFit, positionWinRate } from "./roles";
-import { WIN_GROUPS, verdictForChance, winRead } from "./winModel";
+import { WIN_GROUPS, verdictForChance, winChance } from "./winModel";
 import type { WinGroup } from "./winModel";
 import type { DraftView } from "./scoring";
 import type { ContestedLane, LaneScoreboardEntry } from "./analysis";
@@ -488,7 +488,7 @@ function readArrangement(
   const fit = lineupFit(data, arrangement.picks, settings);
   const board = laneScoreboard(data, view, settings);
   const lanes = laningEdge(board);
-  const win = data.calibration ? winRead(data, view, data.calibration) : null;
+  const win = data.calibration ? winChance(data, view, data.calibration) : null;
   const chance = win ? win.chance * 100 : null;
   const parts = win
     ? (Object.fromEntries(win.parts.map((p) => [p.group, p.points])) as Record<WinGroup, number>)

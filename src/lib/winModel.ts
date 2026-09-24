@@ -1,8 +1,9 @@
 import { matchup, synergy } from "./scoring";
 import type { DraftView } from "./scoring";
+import { RANK_BANDS, atRankBand } from "./positions";
 import { positionFit, positionWinRate } from "./roles";
 import { earlyCoverPenalty, teamCover } from "./timing";
-import type { Dataset, DraftPick, Position } from "../types";
+import type { Dataset, DraftPick, Position, RankBand } from "../types";
 
 /**
  * The draft on the board as a chance of winning.
@@ -34,6 +35,21 @@ export type WinFeature = (typeof WIN_FEATURES)[number];
  * calibrated one. The sliders go on tuning the pick list.
  */
 export const WIN_MODEL_FLOORS = { minMatches: 200, minSynergyMatches: 200 } as const;
+
+/**
+ * `data` at the rank band `calibration` was fitted on, whichever band is on
+ * screen, and as given without a calibration.
+ *
+ * The floors' reason again, for the Tuning rank band: Heroes and the seat terms
+ * are win rates, and a band's win rates are another sample with another spread
+ * — the five-cores draft in docs/scoring.md reads Heroes +4.4 points at all
+ * ranks and −6.3 at Immortal — so a chance read from them under weights fitted
+ * at all ranks would no longer be the calibrated one. The band goes on choosing
+ * the pick list's positions and pick rates.
+ */
+function modelData(data: Dataset, calibration: Calibration | null | undefined): Dataset {
+  return calibration ? atRankBand(data, calibration.rankBand) : data;
+}
 
 const TEAM_SIZE = 5;
 
@@ -104,8 +120,16 @@ function sideCohesion(data: Dataset, picks: DraftPick[]): number {
   return total;
 }
 
-/** Everything the model reads off a board. */
+/**
+ * Everything the model reads off a board, at the band of `data.calibration` —
+ * see `modelData`. `scripts/calibrate.mjs` has no calibration yet and reads the
+ * band it hands in.
+ */
 export function draftFeatures(data: Dataset, board: Board): DraftFeatures {
+  return featuresAt(modelData(data, data.calibration), board);
+}
+
+function featuresAt(data: Dataset, board: Board): DraftFeatures {
   let matchups = 0;
   for (const a of board.mine) {
     for (const b of board.enemy) {
@@ -165,6 +189,8 @@ export interface Calibration {
   /** Games the weights were fitted on. */
   matches: number;
   matchIdRange: [number, number] | null;
+  /** The band the features were read at, and so the one every chance is read at. */
+  rankBand: RankBand;
   /** The role-deficit threshold, in points per hero. */
   tau: number;
   /** Log-odds per unit of each feature. */
@@ -208,6 +234,11 @@ export function readCalibration(raw: unknown): Calibration | null {
   if (!finite(low) || !finite(high)) return null;
   if (!(low > 0 && low < 0.5 && high > 0.5 && high < 1)) return null;
 
+  // Absent from files written before it was recorded, which were all fitted at
+  // all ranks. A band the app cannot apply is a fit it cannot reproduce.
+  const rankBand = file.rankBand ?? "all";
+  if (!RANK_BANDS.includes(rankBand as RankBand)) return null;
+
   const inputs: Calibration["inputs"] = {};
   if (file.inputs && typeof file.inputs === "object") {
     for (const key of CALIBRATION_INPUTS) {
@@ -239,6 +270,7 @@ export function readCalibration(raw: unknown): Calibration | null {
     generatedAt: typeof file.generatedAt === "string" ? file.generatedAt : null,
     matches,
     matchIdRange,
+    rankBand: rankBand as RankBand,
     tau,
     weights,
     range: [low, high],
@@ -447,8 +479,19 @@ function sideRoles(data: Dataset, picks: DraftPick[]): SideRoles {
   };
 }
 
-/** Both sides' seats, for the Roles card and `rolesReason`. */
+/**
+ * Both sides' seats, for the Roles card and `rolesReason`.
+ *
+ * Read at the calibration's band, like the chance — see `modelData` — rather
+ * than the band on screen: the card prints the seats the Roles part priced, and
+ * a seat delta from another band could have it blame a seat for a cost the part
+ * never charged. The hero cards beside it go on showing the band on screen.
+ */
 export function rolesRead(data: Dataset, board: Board): RolesRead {
+  return rolesAt(modelData(data, data.calibration), board);
+}
+
+function rolesAt(data: Dataset, board: Board): RolesRead {
   return { mine: sideRoles(data, board.mine), theirs: sideRoles(data, board.enemy) };
 }
 
@@ -487,8 +530,8 @@ export function rolesReason(roles: RolesRead): string | null {
   return text;
 }
 
-/** The board as a win chance, with its parts and the seats behind the roles part. */
-export interface WinRead {
+/** The board as a win chance and its parts, and nothing that explains them. */
+export interface WinChance {
   /** 0..1, the model's own figure. */
   chance: number;
   logOdds: number;
@@ -497,9 +540,13 @@ export interface WinRead {
   /** "38%", "<15%" — for the top-bar chip. */
   short: string;
   inRange: boolean;
-  verdict: WinVerdict;
   /** In `WIN_GROUPS` order; they add up to `100·chance − 50`. */
   parts: WinPart[];
+}
+
+/** The board as a win chance, with its parts and the seats behind the roles part. */
+export interface WinRead extends WinChance {
+  verdict: WinVerdict;
   roles: RolesRead;
   /** What drafts rated like this won, when the chance is inside the calibrated range. */
   evidence: WinEvidence | null;
@@ -507,8 +554,12 @@ export interface WinRead {
   matches: number;
 }
 
-export function winRead(data: Dataset, board: Board, calibration: Calibration): WinRead {
-  const vector = winFeatures(draftFeatures(data, board), calibration.tau);
+/**
+ * The chance alone, for a reader that weighs many boards and explains none —
+ * the Rebalance search. Read at the calibration's band; see `modelData`.
+ */
+export function winChance(data: Dataset, board: Board, calibration: Calibration): WinChance {
+  const vector = winFeatures(featuresAt(modelData(data, calibration), board), calibration.tau);
   const byGroup = new Map<WinGroup, number>(WIN_GROUPS.map((group) => [group, 0]));
   for (const key of WIN_FEATURES) {
     const group = GROUP_OF[key];
@@ -518,17 +569,24 @@ export function winRead(data: Dataset, board: Board, calibration: Calibration): 
   const logOdds = values.reduce((sum, v) => sum + v, 0);
   const chance = sigmoid(logOdds);
   const points = shapley(values);
-  const display = showChance(chance, calibration.range);
-  const bin = display.inRange
-    ? calibration.reliability.find(([from, to]) => chance >= from && chance < to)
-    : undefined;
   return {
     chance,
     logOdds,
-    ...display,
-    verdict: verdictForChance(chance),
+    ...showChance(chance, calibration.range),
     parts: WIN_GROUPS.map((group, i) => ({ group, label: GROUP_LABEL[group], points: points[i] ?? 0 })),
-    roles: rolesRead(data, board),
+  };
+}
+
+/** `winChance`, with the verdict, seats and evidence the analysis explains it by. */
+export function winRead(data: Dataset, board: Board, calibration: Calibration): WinRead {
+  const win = winChance(data, board, calibration);
+  const bin = win.inRange
+    ? calibration.reliability.find(([from, to]) => win.chance >= from && win.chance < to)
+    : undefined;
+  return {
+    ...win,
+    verdict: verdictForChance(win.chance),
+    roles: rolesAt(modelData(data, calibration), board),
     evidence: bin ? { from: bin[0], to: bin[1], games: bin[2], actual: bin[4] } : null,
     matches: calibration.matches,
   };

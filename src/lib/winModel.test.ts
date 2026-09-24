@@ -13,10 +13,12 @@ import {
   showChance,
   sigmoid,
   verdictForChance,
+  winChance,
   winFeatures,
   winRead,
 } from "./winModel.ts";
 import type { Calibration } from "./winModel.ts";
+import { withRankBand } from "./positions.ts";
 import { deriveTimingShape, earlyCoverPenalty, teamCover } from "./timing.ts";
 import type { Dataset, DraftPick, Hero, MatchupTable, Position, SynergyTable, TimingBucket } from "../types.ts";
 
@@ -78,6 +80,7 @@ const CALIBRATION: Calibration = {
   generatedAt: "2026-09-23T00:00:00.000Z",
   matches: 300_000,
   matchIdRange: [9_000_000_000, 9_009_000_000],
+  rankBand: "all",
   tau: 1.5,
   weights: {
     matchups: 0.046,
@@ -176,6 +179,14 @@ test("a calibration file reads back whole, or not at all", () => {
   assert.equal(readCalibration({ ...CALIBRATION, matches: 0 }), null);
   assert.equal(readCalibration("calibration"), null);
   assert.equal(readCalibration(null), null);
+});
+
+test("a calibration names the band it was fitted at, and all ranks when it predates saying so", () => {
+  const older = JSON.parse(JSON.stringify(CALIBRATION));
+  delete older.rankBand;
+  assert.equal(readCalibration(older)?.rankBand, "all");
+  assert.equal(readCalibration({ ...CALIBRATION, rankBand: "immortal" })?.rankBand, "immortal");
+  assert.equal(readCalibration({ ...CALIBRATION, rankBand: "herald" }), null, "a band the app cannot apply");
 });
 
 test("drift names the data files that changed since the fit", () => {
@@ -334,4 +345,63 @@ test("inside the range the evidence is the bin the chance falls in", () => {
   // −3 points of matchups: σ(−0.138) ≈ 46.6%.
   assert.equal(win.shown, "47%");
   assert.deepEqual(win.evidence, { from: 0.45, to: 0.5, games: 146_917, actual: 0.477 });
+});
+
+/**
+ * `hero`, with STRATZ counts behind it: 90% of their games in `main`, won at
+ * `all` at all ranks and at `immortal` at Immortal, and eight points and one
+ * points less, respectively, anywhere else.
+ */
+function bandedHero(slug: string, main: Position, all: number, immortal: number): Hero {
+  const cells = (winRate: number, offBy: number): Array<[number, number]> =>
+    SEATS.map((p) => {
+      const games = p === main ? 9_000 : 250;
+      return [games, Math.round((games * (p === main ? winRate : winRate - offBy)) / 100)];
+    });
+  return { ...hero(slug, all, main), positionCounts: { all: cells(all, 8), immortal: cells(immortal, 1) } };
+}
+
+/** Five carries who fall off at Immortal against a sound five who rise there. */
+const BANDED_MINE = SEATS.map((p) => bandedHero(`m${p}`, 1, 53, 47));
+const BANDED_THEIRS = SEATS.map((p) => bandedHero(`t${p}`, p, 49, 52));
+const bandedData = (): Dataset => ({
+  ...dataset([...BANDED_MINE, ...BANDED_THEIRS]),
+  positionBands: ["all", "immortal"],
+  rankBand: null,
+  calibration: CALIBRATION,
+});
+const BANDED_BOARD = { mine: seated(BANDED_MINE), enemy: seated(BANDED_THEIRS) };
+
+test("the chance is read at the band it was fitted on, whatever band is on screen", () => {
+  const loaded = bandedData();
+  const all = withRankBand(loaded, "all");
+  const immortal = withRankBand(loaded, "immortal");
+  assert.notEqual(all.bySlug.get("m1")!.winRate, immortal.bySlug.get("m1")!.winRate, "the bands disagree");
+
+  const read = winRead(all, BANDED_BOARD, CALIBRATION);
+  assert.deepEqual(winRead(immortal, BANDED_BOARD, CALIBRATION), read);
+  assert.deepEqual(winRead(loaded, BANDED_BOARD, CALIBRATION), read, "and before any band is applied");
+  assert.deepEqual(draftFeatures(immortal, BANDED_BOARD), draftFeatures(all, BANDED_BOARD));
+
+  // Not a model blind to bands: fitted at Immortal, the same board reads otherwise.
+  const fittedAtImmortal: Calibration = { ...CALIBRATION, rankBand: "immortal" };
+  const high = winRead(all, BANDED_BOARD, fittedAtImmortal);
+  assert.notEqual(high.chance, read.chance);
+  assert.deepEqual(winRead(immortal, BANDED_BOARD, fittedAtImmortal), high);
+});
+
+test("the Roles card prints the seats the chance priced, not the band on screen", () => {
+  const all = withRankBand(bandedData(), "all");
+  const immortal = withRankBand(bandedData(), "immortal");
+  const seat = winRead(immortal, BANDED_BOARD, CALIBRATION).roles.mine.seats[1]!;
+  const priced = all.bySlug.get("m2")!;
+  assert.equal(seat.winRate, priced.winRate);
+  assert.equal(seat.seatWinRate, priced.positionWinRate![2]);
+  assert.notEqual(seat.seatWinRate, immortal.bySlug.get("m2")!.positionWinRate![2]);
+});
+
+test("the chance alone is the read's own chance and parts", () => {
+  const immortal = withRankBand(bandedData(), "immortal");
+  const { chance, logOdds, shown, short, inRange, parts } = winRead(immortal, BANDED_BOARD, CALIBRATION);
+  assert.deepEqual(winChance(immortal, BANDED_BOARD, CALIBRATION), { chance, logOdds, shown, short, inRange, parts });
 });
