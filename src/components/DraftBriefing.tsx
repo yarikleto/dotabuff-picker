@@ -113,7 +113,7 @@ export function GamePlan({ analysis: a, briefing: b, heroes }: { analysis: Draft
         {win ? (
           <div className="intel-score-parts"><h4 className="intel-label">What moves the win chance</h4>{[...win.parts].sort((x, y) => Math.abs(y.points) - Math.abs(x.points)).map((p) => (
             <div key={p.group}><span>{p.label}{win.reasons[p.group] && <span className="intel-part-reason">{win.reasons[p.group]}</span>}</span><strong className={tone(p.points)}>{signed(p.points)}</strong></div>
-          ))}<small>Points of win chance against an even draft; together they make {Math.round(win.chance * 100)}%.</small></div>
+          ))}<small>Points of win chance against an even draft; together they make {win.inRange ? `${win.shown}.` : `the model's ${wholePct(win.chance)}, beyond the range the calibration can vouch for.`}</small></div>
         ) : (
           <div className="intel-score-parts"><h4 className="intel-label">What moves the draft score</h4>{[
             ["Matchups", a.counter], ["Team chemistry", a.cohesionContribution], ["Early cover", a.earlyEdge],

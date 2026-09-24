@@ -1742,8 +1742,20 @@ export function pickImpact(
 
   if (data.calibration) {
     const calibration = data.calibration;
-    const chance = (view: DraftView) => winRead(data, view, calibration).chance * 100;
-    return { unit: "chance", before: before ? chance(draft) : null, after: chance(next), lane };
+    const was = before ? winRead(data, draft, calibration) : null;
+    const now = winRead(data, next, calibration);
+    return {
+      unit: "chance",
+      before: was ? was.chance * 100 : null,
+      after: now.chance * 100,
+      // `short`, the top-bar chip's form: the card has as little room.
+      shown: {
+        before: was?.short ?? null,
+        after: now.short,
+        inRange: now.inRange && (was?.inRange ?? true),
+      },
+      lane,
+    };
   }
   return { unit: "points", before: before?.advantage ?? null, after: after.advantage, lane };
 }

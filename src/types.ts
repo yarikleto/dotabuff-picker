@@ -468,6 +468,14 @@ export interface DraftImpact {
   before: number | null;
   /** Headline figure with the hero on the board. */
   after: number;
+  /**
+   * `before` and `after` as the headline prints them, when `unit` is "chance":
+   * a whole percent inside the calibrated range and a bound beyond it.
+   * `inRange` is whether both ends are inside — the move between them is only
+   * worth printing then, since outside it is the difference of two figures
+   * the headline refuses to show.
+   */
+  shown?: { before: string | null; after: string; inRange: boolean };
   /** The lane the pick moves most, when it moves one past the noise floor. */
   lane: { label: string; delta: number; after: number } | null;
 }

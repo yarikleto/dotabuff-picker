@@ -1461,6 +1461,24 @@ test("the hero card previews the win chance when there is one", () => {
   assert.equal(pickImpact(makeDataset(), midOnly, settings, "counter", 3)!.unit, "points");
 });
 
+test("the hero card prints the win chance the way the headline does", () => {
+  const within = pickImpact(calibrated(), midOnly, settings, "counter", 3)!;
+  assert.equal(within.shown!.after, `${Math.round(within.after)}%`);
+  assert.equal(within.shown!.before, `${Math.round(within.before!)}%`);
+  assert.equal(within.shown!.inRange, true, "both ends inside, so the move is printed");
+
+  // A range no draft here reaches: every figure is past it, as on a rank band
+  // where the whole board reads under the lowest calibrated bin.
+  const high: Dataset = { ...makeDataset(), calibration: { ...CALIBRATION, range: [0.9, 0.95] } };
+  const beyond = pickImpact(high, midOnly, settings, "counter", 3)!;
+  assert.equal(beyond.shown!.after, "<90%");
+  assert.equal(beyond.shown!.before, "<90%");
+  assert.equal(beyond.shown!.inRange, false, "a move between two bounds is not printed");
+  near(beyond.after, within.after, "the raw figure the colour reads is unchanged");
+
+  assert.equal(pickImpact(makeDataset(), midOnly, settings, "counter", 3)!.shown, undefined);
+});
+
 test("a line-up in seats it never plays says so before anything else", () => {
   const data = calibrated();
   // Every one of ours ten points worse in any seat than overall.

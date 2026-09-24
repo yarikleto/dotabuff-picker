@@ -246,30 +246,38 @@ function Impact({ impact, mode }: { impact: DraftImpact; mode: ScoreMode }) {
   const chance = impact.unit === "chance";
   const move = impact.after - (impact.before ?? 0);
   const shownMove = chance ? Math.round(impact.after) - Math.round(impact.before ?? 0) : move;
+  // Past the calibrated range the ends print as bounds, and a move between
+  // two figures the card will not print is no more honest than they are.
+  const showMove = !chance || (impact.shown?.inRange ?? true);
   const arrow = mode === "ban" ? "if they take them" : "if you take them";
   const label = chance ? "win chance " : "draft ";
   const figure = (n: number) => (chance ? `${Math.round(n)}%` : formatSigned(n, 1));
+  // The headline's own text where there is one; colour stays on the raw figure.
+  const before = impact.shown?.before ?? (impact.before === null ? null : figure(impact.before));
+  const after = impact.shown?.after ?? figure(impact.after);
   const good = (n: number) => (chance ? n >= 50 : n >= 0);
   return (
     <section className="hc-section hc-impact">
       <h4>The board afterwards</h4>
       <p className="hc-impact-line">
-        {impact.before === null ? (
+        {before === null ? (
           <>
             <span className="muted">{label}</span>
-            <strong className={good(impact.after) ? "good" : "bad"}>{figure(impact.after)}</strong>
+            <strong className={good(impact.after) ? "good" : "bad"}>{after}</strong>
           </>
         ) : (
           <>
             <span className="muted">{label}</span>
-            <span className="hc-impact-from">{figure(impact.before)}</span>
+            <span className="hc-impact-from">{before}</span>
             <span className="muted" aria-label="becomes">
               {" → "}
             </span>
-            <strong className={good(impact.after) ? "good" : "bad"}>{figure(impact.after)}</strong>
-            <span className={`hc-impact-move ${shownMove >= 0 ? "good" : "bad"}`}>
-              {`(${formatSigned(shownMove, chance ? 0 : 1)})`}
-            </span>
+            <strong className={good(impact.after) ? "good" : "bad"}>{after}</strong>
+            {showMove && (
+              <span className={`hc-impact-move ${shownMove >= 0 ? "good" : "bad"}`}>
+                {`(${formatSigned(shownMove, chance ? 0 : 1)})`}
+              </span>
+            )}
           </>
         )}
         <span className="muted"> {arrow}</span>
