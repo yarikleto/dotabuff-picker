@@ -620,7 +620,9 @@ function offRoleSeats(data: Dataset, picks: DraftPick[], settings: Settings): Of
 }
 
 /**
- * The most score a seat repair may cost before it stops being advice.
+ * The most score a seat repair may cost before it stops being advice, on the
+ * comparison signal — the search without a calibration. With one, `total` is in
+ * points of win chance and the ceiling is `MAX_SEAT_CHANCE_COST`.
  *
  * A ceiling, not a working limit. Across 283 scrambled boards the dearest
  * repair the live table produced cost 1.48, and only 39 of 794 cost anything at
@@ -642,10 +644,46 @@ export const MAX_SEAT_COST = 2;
  * Points of win chance an arrangement has to add to be offered on its figure
  * alone, when the dataset carries a calibration. The comparison signal's half
  * point was worth about four and a half points of win chance on real games; one
- * is the smallest change worth asking a player to move for. `MAX_SEAT_COST` is
- * read in the same points when calibrated.
+ * is the smallest change worth asking a player to move for.
  */
 export const CHANCE_GAIN = 1;
+
+/**
+ * The most win chance a seat repair may cost, in points, when the dataset
+ * carries a calibration — `MAX_SEAT_COST`'s job, in the units `total` is then in.
+ *
+ * Not `MAX_SEAT_COST` read in new units, which is what stood here first. Two
+ * points of win chance is inside what real repairs cost: across 900 scrambled
+ * boards on the live table, one in forty of the repairs the panel would have
+ * shortlisted cost more than two points of win chance, against almost none past
+ * two on the comparison signal. Reusing the number made the calibrated search
+ * several times stricter than the one it replaced, silently — a repair the
+ * signal offered was dropped, and a board whose only repairs were dear was told
+ * no rearrangement fixes it. Nor is it that limit put through the conversion
+ * `CHANCE_GAIN` quotes, which would make it eighteen: that rate is what a point
+ * of the draft figure is worth on real games, and a reseat moves the seat terms
+ * and little else. On those boards a repair's change in win chance ran at about half
+ * its change in the signal, with a wider spread.
+ *
+ * Five is the same kind of ceiling as the signal's two, and it is reached from
+ * both sides. It is above every repair the panel would have shown on those
+ * boards — the dearest, shortlisted or one trade away, cost 4.3 — so it does not
+ * pick between the repairs a captain will actually see. And it is just under
+ * what the model itself charges for the stretch being undone: a hero in the
+ * thinnest seats reads 7.4pp below their own figure, which at the fitted
+ * seat-penalty weight (0.031 log-odds a point in the current calibration) is
+ * 0.23 log-odds, about five and three-quarter points of win chance on an even
+ * board. A repair dearer than that is losing more elsewhere than the stranded
+ * seat was ever costing, which is the "wreck the draft to satisfy a slider" row
+ * the bound exists to refuse.
+ *
+ * Seldom reached, because the model prices a bad seat: freeing one usually
+ * *adds* chance, and the median shortlisted repair on those boards gained half
+ * a point. The cost comes from a thin seat the model does not mind — a small
+ * sample that happens to have gone well — and from whoever has to move to make
+ * room.
+ */
+export const MAX_SEAT_CHANCE_COST = 5;
 
 /** The same five heroes in the same positions? */
 const samePlacement = (a: DraftPick[], b: DraftPick[]): boolean => {
@@ -865,6 +903,12 @@ export function rebalance(
    * otherwise.
    */
   const floor = current.chance !== null ? CHANCE_GAIN : NOISE;
+  /**
+   * And the most a seat repair may cost, in the same units. Chosen the same way
+   * as `floor` and for the same reason: a limit set on one scale and read on the
+   * other is a different rule, not the same one.
+   */
+  const seatCeiling = current.chance !== null ? MAX_SEAT_CHANCE_COST : MAX_SEAT_COST;
   const verdictOf = (score: ArrangementScore) =>
     score.chance !== null ? verdictForChance(score.chance / 100).label : verdictFor(score.advantage).label;
   const oneMoveAway = new Set(
@@ -921,10 +965,10 @@ export function rebalance(
        * decided before the floor that would otherwise throw it away: it has to
        * free somebody the board had stranded, must not strand anybody who was
        * fine, and may not spend more than the stretch it is undoing was priced
-       * at. See `MAX_SEAT_COST`.
+       * at. See `MAX_SEAT_COST` and `MAX_SEAT_CHANCE_COST`.
        */
       const fixesSeats =
-        repairedSeats.length > 0 && !strandsAnyoneNew && gain.total > -MAX_SEAT_COST;
+        repairedSeats.length > 0 && !strandsAnyoneNew && gain.total > -seatCeiling;
 
       /**
        * Below this the arrangement is not merely unhelpful, it is a loss, and

@@ -391,8 +391,10 @@ An arrangement earns its place on the list one of three ways:
   they do not play are named at the top of the panel, and the arrangements that
   free them are offered whether or not the figure improves, with the cost printed
   on each. This is the only kind of row on the panel allowed to lose score, and
-  it may lose at most `MAX_SEAT_COST`, about half of what the stretch it is
-  undoing is priced at. When nothing fixes it, the panel says *that*
+  it may lose at most five points of win chance (`MAX_SEAT_CHANCE_COST`), just
+  under what the model charges for a hero in the thinnest seats — or, without a
+  calibration, two points of the comparison signal (`MAX_SEAT_COST`). When
+  nothing fixes it, the panel says *that*
   instead of saying nothing: *"no rearrangement of these five fixes it — that is
   a draft problem, not a seating one."*
 - **It is worth more** — it adds at least a point of win chance. Seats and the

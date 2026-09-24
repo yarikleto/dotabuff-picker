@@ -639,13 +639,18 @@ option prints the lane shifts under it.
 
 An arrangement is offered on its figure when it adds at least one point of win
 chance (`CHANCE_GAIN`); one that puts a stranded hero back on a seat they play
-may cost up to two (`MAX_SEAT_COST`). Gains print as points of win chance with
-the parts that moved.
+may cost up to five (`MAX_SEAT_CHANCE_COST`). That is a ceiling, not a price:
+the model charges for a bad seat, so freeing a hero usually adds chance, and
+five sits just under what it charges for a hero in the thinnest seats (7.4 points
+below their own figure, about five and three-quarter points of win chance on an
+even board) and above every repair the panel showed across 900 scrambled boards.
+Gains print as points of win chance with the parts that moved.
 
 Without `calibration.json` the search keeps the objective it had before: the
 comparison signal, plus the lane cards' laning, form and duo readings averaged
 over the contested lanes, plus each hero's seat record at the meta weight, with
-the half-point noise floor as its threshold.
+the half-point noise floor as its threshold and two points (`MAX_SEAT_COST`) as
+the most a seat repair may cost.
 
 ## Where positions come from
 
