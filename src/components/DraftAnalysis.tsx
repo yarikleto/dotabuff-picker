@@ -867,6 +867,7 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
             {analysis.win.roles.mine.seats.map((seat) => (
               <SeatRow key={seat.slug} seat={seat} hero={data.bySlug.get(seat.slug)} />
             ))}
+            <p className="lane-note muted">{`Seat total ${formatSigned(analysis.win.roles.mine.total, 1)} points against their own records`}</p>
             <h4 className="analysis-sub-head">
               {`Theirs${
                 analysis.win.roles.theirs.noSupports
@@ -879,6 +880,7 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
             {analysis.win.roles.theirs.seats.map((seat) => (
               <SeatRow key={`them-${seat.slug}`} seat={seat} hero={data.bySlug.get(seat.slug)} />
             ))}
+            <p className="lane-note muted">{`Seat total ${formatSigned(analysis.win.roles.theirs.total, 1)} points against their own records`}</p>
           </article>
         )}
 
@@ -956,7 +958,7 @@ export function DraftAnalysis({ analysis, data, hasTimings, onClose }: Props) {
         plus half of draws; form describes game results from that lane. Timing skews are relative
         to each hero’s own baseline.{" "}
         {analysis.win
-          ? `The win chance comes from a model fitted on ${analysis.win.matches.toLocaleString()} ranked games and checked on games it was not fitted on; it prices roles, matchups, cohesion, hero strength and timing, and nothing about the players.`
+          ? `The win chance comes from a model fitted on ${analysis.win.matches.toLocaleString()} ranked games and checked out of fold; it prices roles, matchups, cohesion, hero strength and timing, and nothing about the players.`
           : "The composite draft score is a comparison signal, not a win probability."}{" "}
         Edges below {NOISE.toFixed(1)} points are treated as noise.
       </p>

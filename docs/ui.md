@@ -139,8 +139,8 @@ unstarred hero near the top may be a setting.
 **Draft analysis** is the first of the top bar's actions. It carries the
 draft's win chance and opens the analysis above the board; until both teams
 have a hero it is greyed out and its tooltip says what it needs. The chance
-comes from a model whose weights are fitted on real ranked games and checked on
-games it was not fitted on — see [Win chance](scoring.md#win-chance). Without
+comes from a model whose weights are fitted on real ranked games and checked out of
+fold — see [Win chance](scoring.md#win-chance). Without
 `public/data/calibration.json` the button carries the older signed comparison
 signal instead, and the panel is tagged `uncalibrated`.
 
@@ -292,7 +292,7 @@ as an expected win rate, which it was not: the figure was a *mean* of pairwise
 deltas, and a mean of marginal effects is not their combined effect. The fix at
 the time was to stop calling it a probability. The fix now is to make it one:
 the parts are summed, weighted by what real games say each is worth, and the
-result is checked against games the weights never saw — drafts rated 38% won
+result is checked out of fold — drafts rated 38% won
 37.6% of theirs. Outside the range the calibration can vouch for, the headline
 says "under 15%" rather than printing a figure nobody has checked.
 

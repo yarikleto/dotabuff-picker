@@ -123,7 +123,7 @@ function Option({
             is the number on the Draft analysis button and the one they will
             check this against.
           */}
-          <span title="The two terms behind the figure on the left: what the arrangement does to the draft number, and what it does to how well your five suit their seats.">
+          <span title={option.gain.parts ? "The parts of the win chance this arrangement moves, in points, and the lane read beside them (not in the figure)." : "The three terms behind the figure on the left: the draft number, the lane read and how well your five suit their seats."}>
             {breakdownOf(option)}
           </span>
           {` · leaves the draft at ${boardFigure(option.score)}, ${option.verdict.toLowerCase()}`}

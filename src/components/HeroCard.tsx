@@ -245,7 +245,7 @@ interface HeroCardProps {
 function Impact({ impact, mode }: { impact: DraftImpact; mode: ScoreMode }) {
   const chance = impact.unit === "chance";
   const move = impact.after - (impact.before ?? 0);
-  const shownMove = chance ? Math.round(move) : move;
+  const shownMove = chance ? Math.round(impact.after) - Math.round(impact.before ?? 0) : move;
   const arrow = mode === "ban" ? "if they take them" : "if you take them";
   const label = chance ? "win chance " : "draft ";
   const figure = (n: number) => (chance ? `${Math.round(n)}%` : formatSigned(n, 1));

@@ -18,7 +18,7 @@ function winEvidence(win: DraftWin): string {
   if (win.evidence) {
     return (
       `Drafts rated ${wholePct(win.evidence.from)}–${wholePct(win.evidence.to)} won ` +
-      `${(win.evidence.actual * 100).toFixed(1)}% of ${win.evidence.games.toLocaleString()} line-ups it was not fitted on`
+      `${(win.evidence.actual * 100).toFixed(1)}% of ${win.evidence.games.toLocaleString()} line-ups in an out-of-fold check`
     );
   }
   return `Calibrated on ${win.matches.toLocaleString()} ranked games`;
