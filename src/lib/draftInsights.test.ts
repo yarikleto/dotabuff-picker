@@ -236,6 +236,32 @@ test("a well-seated draft that still prices its seats gets a neutral roles insig
   assert.doesNotMatch(roles!.action, /Rebalance/);
 });
 
+test("the roles insight names the rare seat the reason names, not the worst delta", () => {
+  const f = fixture();
+  // ours1 costs the most (−2.5) but plays its seat in 20% of games; ours2 costs
+  // less (−1) but almost never plays its seat. The others sit at −2 on their
+  // usual seats so the seats are priced. rolesReason names ours2 alone.
+  for (const p of f.draft.mine) {
+    const h = f.data.bySlug.get(p.slug)!;
+    h.positions = { 1: 0.1, 2: 0.1, 3: 0.1, 4: 0.1, 5: 0.1 };
+    h.positions[p.position!] = 0.6;
+    h.positionWinRate = { 1: 50, 2: 50, 3: 50, 4: 50, 5: 50 };
+    h.positionWinRate[p.position!] = 48;
+  }
+  f.data.bySlug.get("ours1")!.positions![1] = 0.2;
+  f.data.bySlug.get("ours1")!.positionWinRate![1] = 47.5;
+  f.data.bySlug.get("ours2")!.positions![2] = 0.01;
+  f.data.bySlug.get("ours2")!.positionWinRate![2] = 49;
+  f.data.calibration = CALIBRATION;
+  const a = f.analyse();
+  assert.match(a.win!.reasons.roles!, /^ours2 at 2 \(1\.0% of their games\)$/);
+  const roles = buildBriefing(a).insights.find((i) => i.id === "roles");
+  assert.ok(roles);
+  assert.equal(roles!.title, "ours2 is out of position at 2");
+  assert.match(roles!.action, /Rebalance/);
+  assert.match(roles!.evidence, /^ours2 wins 49\.0% at 2 against 50\.0% overall\./);
+});
+
 test("without a calibration the briefing leads as it did", () => {
   const b = buildBriefing(fixture().analyse());
   assert.notEqual(b.title, "Fix the roles first.");
