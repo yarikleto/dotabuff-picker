@@ -24,9 +24,10 @@
 <br>
 
 A pick/ban assistant for Dota 2. Mark who the enemy took, who you took and what
-got banned: it ranks the heroes that match up best into the enemy line-up *and*
-work best beside your own, reads every lane seat by seat, and tells you which
-hero the enemy most wants next. It runs in the browser, with nothing to install.
+got banned, with a click or in plain words: `they banned lina`, `I pick pl mid`.
+It ranks the heroes that match up best into the enemy line-up *and* work best
+beside your own, reads every lane seat by seat, and tells you which hero the
+enemy most wants next. It runs in the browser, with nothing to install.
 
 <img src="docs/assets/screenshot.jpg" alt="The picker mid-draft: Faceless Void and Crystal Maiden against Invoker, Axe and Lion, with the mid candidates ranked on the right" width="100%">
 
@@ -88,7 +89,7 @@ matchup pages, so counters carry no patch of their own.
 | Right-click | Removes from the draft |
 | Just start typing | Focuses the search box |
 | `Enter` | Takes the top search hit; `Shift`+`Enter` bans it |
-| Type what happened — `they banned lina`, `I pick pl mid` — then `Enter` | Does it: picks, bans, removals and positions, either side, with **Undo**. Typos such as `lnia` or `phantm lancr` still find the hero — [how it reads](docs/ui.md#typing-the-draft) |
+| Type what happened, then `Enter` | Picks, bans, removes and seats heroes for either side — see [Typing the draft](#typing-the-draft) |
 | `Alt`+`1/2/3` | Switches the active slot |
 | `Esc` | Clears the search |
 | Hover the **i** on a tile | Opens the full breakdown for that hero |
@@ -101,6 +102,25 @@ Your picks are green, the enemy's are red, bans are greyed out and crossed
 through. Once the enemy has heroes on the board, every remaining tile shows its
 average advantage against that line-up in the corner. What each panel shows and
 how to read it: [docs/ui.md](docs/ui.md).
+
+### Typing the draft
+
+The search box takes the draft in plain words. Type what happened and press
+`Enter`:
+
+- `they banned lina`: their ban
+- `I pick pl mid`: Phantom Lancer on your team, at position 2
+- `we ban bruda, am and pa`: three bans of yours
+- `they picked lina mid, cm hard support and we took am`: the whole exchange at once
+
+The line under the box says what `Enter` will do before you press it, and what
+it did afterwards, with **Undo**. It knows sides (*I, we, our* and *they, them,
+enemy*), actions (*pick, took, ban, remove…*), positions (*pos 1*, *mid*,
+*offlane*, *hard support*…) and the nicknames players use (`pl`, `kotl`,
+`bruda`, `kent`…), and it reads typos such as `lnia` or `phantm lancr`. A word
+it cannot place is shown rather than guessed at. It is all worked out in the
+page, in any browser. How it reads a sentence:
+[docs/ui.md](docs/ui.md#typing-the-draft).
 
 ## Updating the data
 
@@ -149,7 +169,7 @@ build is relative: [docs/website.md](docs/website.md).
 ## Development
 
 ```bash
-npm test                # parsers, collectors, the scoring engine, the README blocks
+npm test                # parsers, collectors, the scoring engine, typed commands, the README blocks
 npm run build           # typecheck + production bundle
 npm run readme:images   # re-render the banner and the screenshot
 ```
@@ -196,11 +216,13 @@ src/lib/roles.ts             position labels, lane pairings, auto-assignment
 src/lib/dataset.ts           loads the data files, merges the roster
 src/lib/positions.ts         STRATZ counts -> positions for the chosen rank band
 src/lib/lanes.ts             lane outcomes: expectation, pairing effects, counters by seat
-src/lib/search.ts            hero search, abbreviations, internal names
+src/lib/search.ts            hero search: nicknames, internal names, typos (unit-tested)
+src/lib/command.ts           typed draft commands, read and applied (pure, unit-tested)
+src/lib/draftState.ts        the draft reducer (pure)
 src/components/HeroCard.tsx  the hover breakdown behind each tile's i icon
 src/components/DraftAnalysis.tsx  the panel behind the Draft analysis button
 src/components/Rebalance.tsx the reshuffle shortlist behind the top-bar button
-src/state/draft.ts           draft reducer + localStorage
+src/state/draft.ts           the draft hook + localStorage
 src/data/heroes.ts           the hero roster every collector finds heroes through
 .github/workflows/pages.yml  tests, builds and publishes the site to GitHub Pages
 .claude/skills/refresh-data  the data routine, written for agents
