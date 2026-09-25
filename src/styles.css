@@ -1110,6 +1110,21 @@ code {
   font-size: 12px;
 }
 
+.command-status {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+}
+
+.command-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .sortbar {
   display: flex;
   align-items: center;

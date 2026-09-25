@@ -7,6 +7,8 @@ import { RankFilter } from "./components/RankFilter";
 import { Rebalance } from "./components/Rebalance";
 import { Suggestions } from "./components/Suggestions";
 import { BanPanel, TeamPanel } from "./components/TeamPanel";
+import { CommandStatus } from "./components/CommandStatus";
+import { readCommand } from "./lib/command";
 import { emptyDataset, loadDataset } from "./lib/dataset";
 import { withRankBand } from "./lib/positions";
 import { buildSearchIndex, searchHeroes } from "./lib/search";
@@ -30,6 +32,7 @@ import {
 } from "./lib/scoring";
 import { intentScores, readIntent, readNearMisses } from "./lib/intent";
 import { bansBy } from "./lib/bans";
+import { useDraftCommand } from "./state/command";
 import { TEAM_SIZE, useDraft } from "./state/draft";
 import { useSettings } from "./state/settings";
 import type { BanSide, Dataset, Position, Slot, SortMode, Suggestion } from "./types";
@@ -144,6 +147,7 @@ export default function App() {
     clearSlot,
     swapTeams,
     reset,
+    replace,
     total,
   } = useDraft();
   const { settings, update, reset: resetSettings } = useSettings();
@@ -191,7 +195,12 @@ export default function App() {
   }, []);
 
   const index = useMemo(() => buildSearchIndex(dataset.heroes), [dataset.heroes]);
-  const visibleHeroes = useMemo(() => searchHeroes(index, query), [index, query]);
+  // The search box doubles as a command line: "they banned lina" filters the grid to Lina.
+  const command = useMemo(() => readCommand(index, query), [index, query]);
+  const visibleHeroes = useMemo(
+    () => searchHeroes(index, command.searchText),
+    [index, command.searchText],
+  );
 
   const myGaps = useMemo(() => missingPositions(draft.mine), [draft.mine]);
   const enemyGaps = useMemo(() => missingPositions(draft.enemy), [draft.enemy]);
@@ -589,15 +598,29 @@ export default function App() {
     [assignHero],
   );
 
+  const heroOf = useCallback((slug: string) => dataset.bySlug.get(slug), [dataset.bySlug]);
+  const clearQuery = useCallback(() => setQuery(""), []);
+  const commandLine = useDraftCommand({
+    text: query,
+    read: command,
+    clearText: clearQuery,
+    draft,
+    replace,
+    armed: activeSlot,
+    banSide,
+    heroOf,
+  });
+
   const onSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key !== "Enter") return;
+      if (commandLine.enter()) return;
       const top = visibleHeroes[0];
       if (!top) return;
       assignHero(top.slug, e.shiftKey ? "banned" : activeSlot);
       setQuery("");
     },
-    [assignHero, activeSlot, visibleHeroes],
+    [commandLine, assignHero, activeSlot, visibleHeroes],
   );
 
   const freshness = dataset.generatedAt ? shortDate(dataset.generatedAt) : null;
@@ -1026,7 +1049,8 @@ export default function App() {
               className="search"
               type="search"
               value={query}
-              placeholder="Search heroes — try “pa”, “kotl”, “nevermore”…"
+              placeholder="Search, or type “they banned lina”"
+              aria-label="Search heroes or type a draft command"
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onSearchKeyDown}
               autoComplete="off"
@@ -1106,31 +1130,42 @@ export default function App() {
             />
           </div>
 
-          <p className="hints muted">
-            Click a hero to add them as{" "}
-            <strong>
-              {(activeSlot === "banned"
-                ? BAN_SIDE_LABEL[banSide]
-                : SLOT_LABEL[activeSlot]
-              ).toLowerCase()}
-            </strong>{" "}
-            — tiles glow{" "}
-            <span className={`hint-slot hint-slot-${activeSlot}`}>
-              {activeSlot === "mine" ? "green" : activeSlot === "enemy" ? "red" : "grey"}
-            </span>{" "}
-            to say so · <kbd>Shift</kbd>+click bans for {banSide === "mine" ? "you" : "them"} ·{" "}
-            <kbd>Shift</kbd>+<kbd>Alt</kbd>+click bans for the other side · <kbd>Alt</kbd>+click
-            sends to the other team · right-click removes · <kbd>Enter</kbd> takes the top search
-            hit · hover the <span className="hint-info">i</span> on a tile for the full breakdown
-            {dataset.hasPositions && (
-              <span> · positions are guessed on pick and editable in the team panels</span>
+          {/* The live region stays mounted so screen readers hear the status change. */}
+          <div className="board-hints">
+            <div aria-live="polite">
+              {commandLine.status && (
+                <CommandStatus status={commandLine.status} onUndo={commandLine.undo} />
+              )}
+            </div>
+            {!commandLine.status && (
+              <p className="hints muted">
+                Click a hero to add them as{" "}
+                <strong>
+                  {(activeSlot === "banned"
+                    ? BAN_SIDE_LABEL[banSide]
+                    : SLOT_LABEL[activeSlot]
+                  ).toLowerCase()}
+                </strong>{" "}
+                — tiles glow{" "}
+                <span className={`hint-slot hint-slot-${activeSlot}`}>
+                  {activeSlot === "mine" ? "green" : activeSlot === "enemy" ? "red" : "grey"}
+                </span>{" "}
+                to say so · <kbd>Shift</kbd>+click bans for {banSide === "mine" ? "you" : "them"} ·{" "}
+                <kbd>Shift</kbd>+<kbd>Alt</kbd>+click bans for the other side · <kbd>Alt</kbd>+click
+                sends to the other team · right-click removes · <kbd>Enter</kbd> takes the top search
+                hit, or does what you type — “they banned lina” · hover the{" "}
+                <span className="hint-info">i</span> on a tile for the full breakdown
+                {dataset.hasPositions && (
+                  <span> · positions are guessed on pick and editable in the team panels</span>
+                )}
+              </p>
             )}
-          </p>
+          </div>
 
           <div className="grid-scroll">
             <HeroGrid
               heroes={sortedHeroes}
-              grouped={!query && sort === "attr"}
+              grouped={!command.searchText.trim() && sort === "attr"}
               slotOf={slotOf}
               seatOf={seatOf}
               activeSlot={activeSlot}

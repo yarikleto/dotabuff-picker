@@ -88,6 +88,7 @@ matchup pages, so counters carry no patch of their own.
 | Right-click | Removes from the draft |
 | Just start typing | Focuses the search box |
 | `Enter` | Takes the top search hit; `Shift`+`Enter` bans it |
+| Type what happened — `they banned lina`, `I pick pl mid` — then `Enter` | Does it: picks, bans, removals and positions, either side, with **Undo**. Typos such as `lnia` or `phantm lancr` still find the hero — [how it reads](docs/ui.md#typing-the-draft) |
 | `Alt`+`1/2/3` | Switches the active slot |
 | `Esc` | Clears the search |
 | Hover the **i** on a tile | Opens the full breakdown for that hero |

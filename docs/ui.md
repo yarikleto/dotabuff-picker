@@ -3,6 +3,60 @@
 What each panel shows, and how to read it. The keyboard shortcuts and the basics
 are in the [README](../README.md#using-it).
 
+## Typing the draft
+
+The search box also takes the draft in words. Type what happened and press
+**Enter**:
+
+- `they banned lina`: a ban, credited to them
+- `I pick pl mid`: Phantom Lancer on your team, at position 2
+- `we ban bruda, am and pa`: three bans of yours
+- `they picked lina mid, cm hard support and we took am`: all of it at once
+- `they banned lina we picked pl`: two clauses, no comma needed
+
+It reads who (*I, we, my, our* for your side; *they, them, their, enemy* for
+theirs), what (*pick, took, played, ban, remove, unban…*) and where (*pos 1*,
+*carry*, *mid*, *offlane*, *soft support*, *support*, or a bare digit). A side
+or an action named once carries along the list after it, and a side named after
+a finished clause starts the next one, comma or not. A clause that names a
+position and no action is a pick: `we banned lina, their mid is pl`. Heroes are
+found the way the search finds them: names, nicknames such as `pl`, `kotl` or
+`bruda`, and Valve's internal names. A sentence that names no side fills the armed slot, as a click would,
+and *support* on its own seats a hero at whichever of 4 and 5 is free and they
+play more.
+
+While you type, the grid narrows to the hero being named and the line under the
+search box says what **Enter** will do: `Enter · Their ban: Lina`. Afterwards
+it says what was done, with **Undo** for as long as the board is the one the
+command left; typing `undo` and pressing **Enter** does the same. Naming a hero
+who is already where the sentence puts them changes nothing and says so; it
+never takes them off the board. A hero name or nickname on its own is a search,
+and **Enter** takes the top hit.
+
+### Typos and stray words
+
+A typo of a name or nickname still finds the hero: `lnia`, `invokr`,
+`phantm lancr`, `crystal maden`. In what you type, up to five letters only a
+swapped pair counts, longer words may be one letter out, and from ten letters
+two; the first letter has to be right. Those limits were set against the 10,000 most
+common English words, so that `line` stays a word rather than Lina. The grid
+uses the same reading, so a typo in the plain search shows the closest hero.
+
+Words that name nobody are skipped and listed as not recognized, and the heroes
+around them still count: `they instantly banned lina` bans Lina. Two things are
+never guessed:
+
+- Inside a list with no commas, every hero has to be named in full or as a
+  typo of a full name, so `they banned lina night` does not turn *night* into
+  Night Stalker.
+- A clause that names no action and holds an unknown word does nothing:
+  `bannned lina` may be a misspelled ban, so the line says
+  `Didn't recognize “bannned”, so nothing happens to Lina` and Lina is left
+  where she is.
+
+Descriptions such as `the spider lady` are not read; the nickname list is where
+new names go.
+
 ## Numbers on the tiles
 
 Once the enemy has heroes on the board, every remaining tile carries its average
