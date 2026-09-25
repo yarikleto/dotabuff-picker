@@ -1,4 +1,4 @@
-import { RANK_BANDS, RANK_BAND_LABEL } from "../lib/positions";
+import { RANK_BANDS, RANK_BAND_LABEL, RANK_BAND_MEDALS, rankMedalUrl } from "../lib/positions";
 import type { RankBand } from "../types";
 
 interface RankFilterProps {
@@ -34,6 +34,11 @@ export function RankFilter({ value, available, onChange }: RankFilterProps) {
           disabled={!available.includes(band)}
           title={title(band)}
         >
+          <span className="rank-medals" aria-hidden="true">
+            {RANK_BAND_MEDALS[band].map((medal) => (
+              <img key={medal} src={rankMedalUrl(medal)} alt="" width={20} height={20} />
+            ))}
+          </span>
           {RANK_BAND_LABEL[band]}
         </button>
       ))}

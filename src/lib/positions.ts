@@ -25,6 +25,19 @@ export const RANK_BAND_LABEL: Record<RankBand, string> = {
 };
 
 /**
+ * Medals drawn beside each band's label, from public/ranks/. All ranks stacks
+ * the bottom and top of the ladder: any single medal would read as that one
+ * rank.
+ */
+export const RANK_BAND_MEDALS: Record<RankBand, readonly string[]> = {
+  all: ["herald", "immortal"],
+  divine: ["divine"],
+  immortal: ["immortal"],
+};
+
+export const rankMedalUrl = (medal: string) => `${import.meta.env.BASE_URL}ranks/${medal}.png`;
+
+/**
  * Share bands the seat prior is measured in.
  *
  * Narrow where the effect moves fastest — nearly all of it is spent below a

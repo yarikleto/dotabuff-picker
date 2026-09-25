@@ -447,6 +447,29 @@ code {
   padding: 4px 9px;
 }
 
+.rank-medals {
+  display: inline-flex;
+  /* The medal is taller than the 12px label; the negative margin keeps it from growing the top bar. */
+  margin-block: -4px;
+}
+
+.rank-medals img {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.rank-medals img + img {
+  margin-left: -7px;
+}
+
+/* On a phone the medals push the rank switch onto a row of its own. */
+@media (max-width: 480px) {
+  .rank-medals {
+    display: none;
+  }
+}
+
 .tone-accent {
   --seg-tone: var(--accent);
 }
