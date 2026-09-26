@@ -456,6 +456,8 @@ export interface CommandContext {
   /** Whose ban a ban naming nobody is. */
   banSide: BanSide;
   heroOf: (slug: string) => Hero | undefined;
+  /** The role pool seat for a hero joining my team, when an open role's pool lists them. */
+  poolSeat?: (slug: string, team: DraftPick[]) => Position | null;
 }
 
 export type OutcomeTone = "mine" | "enemy" | "ban-mine" | "ban-enemy" | "removed";
@@ -579,7 +581,8 @@ export function planCommand(
       say(`${whose(side, true)} team is full`, null);
       continue;
     }
-    const position = seatFor(ctx.heroOf(slug), picks, action.seat);
+    const pooledSeat = action.seat === null && side === "mine" ? (ctx.poolSeat?.(slug, picks) ?? null) : null;
+    const position = pooledSeat ?? seatFor(ctx.heroOf(slug), picks, action.seat);
     // Seated through setPosition rather than assign, so a named seat is taken from whoever held it.
     state = draftReducer(state, { type: "assign", slug, slot: side, position: null });
     if (position !== null) state = draftReducer(state, { type: "setPosition", slug, position });

@@ -88,6 +88,10 @@ export interface HeroGridProps {
    * browsing the pool and not only in the panel that spells it out.
    */
   intent: Map<string, number>;
+  pooled: Map<string, Position[]>;
+  /** The role whose pool a click edits instead of the draft, or null. */
+  poolEdit: Position | null;
+  onTogglePool: (position: Position, slug: string) => void;
 }
 
 const otherTeam = (slot: Slot): Slot => (slot === "enemy" ? "mine" : "enemy");
@@ -105,8 +109,12 @@ const HeroTile = memo(function HeroTile({
   activeSlot,
   banSide,
   offRole,
+  pool,
+  poolEdit,
+  inEditedPool,
   onAssign,
   onRemove,
+  onTogglePool,
   onInfoEnter,
   onInfoLeave,
   onInfoClick,
@@ -128,14 +136,19 @@ const HeroTile = memo(function HeroTile({
   activeSlot: Slot;
   banSide: BanSide;
   offRole: boolean;
+  pool: Position[] | undefined;
+  poolEdit: Position | null;
+  inEditedPool: boolean;
   onAssign: HeroGridProps["onAssign"];
   onRemove: HeroGridProps["onRemove"];
+  onTogglePool: HeroGridProps["onTogglePool"];
   onInfoEnter: (slug: string, el: HTMLElement) => void;
   onInfoLeave: () => void;
   onInfoClick: (slug: string, el: HTMLElement) => void;
   infoOpen: boolean;
 }) {
   const handleClick = (e: React.MouseEvent) => {
+    if (poolEdit) return onTogglePool(poolEdit, hero.slug);
     // Shift bans; Shift+Alt bans for the other side. Alt keeps meaning "the
     // other one" in both cases, which is the only thing that has to be
     // remembered — for a team that is the other team, for a ban the other bench.
@@ -163,6 +176,10 @@ const HeroTile = memo(function HeroTile({
       : null,
     cleared > 0
       ? `their bans cleared ${cleared.toFixed(1)} points of counter-play from this hero's path`
+      : null,
+    pool?.length ? `in the pos ${pool.join(", ")} role pool` : null,
+    poolEdit
+      ? `click to ${inEditedPool ? "remove from" : "add to"} the pos ${poolEdit} pool`
       : null,
   ]
     .filter(Boolean)
@@ -193,14 +210,19 @@ const HeroTile = memo(function HeroTile({
     // board is set to, and that is easy to forget between drafts; colouring the
     // hover green, red or grey says what this click is about to do before it
     // happens, rather than after.
-    <div className={`tile-wrap tile-wrap-${activeSlot}`}>
+    <div
+      className={`tile-wrap ${poolEdit ? `tile-wrap-pool pool-tone-${poolEdit}` : `tile-wrap-${activeSlot}`}`}
+    >
       <button
         type="button"
-        className={`tile ${slot ? `tile-${slot}` : ""} ${offRole ? "tile-offrole" : ""}`}
+        className={`tile ${slot ? `tile-${slot}` : ""} ${offRole && !poolEdit ? "tile-offrole" : ""} ${
+          inEditedPool ? `tile-in-pool pool-tone-${poolEdit}` : ""
+        }`}
         onClick={handleClick}
         onContextMenu={(e) => {
           e.preventDefault();
-          onRemove(hero.slug);
+          if (!poolEdit) onRemove(hero.slug);
+          else if (inEditedPool) onTogglePool(poolEdit, hero.slug);
         }}
         title={title}
         aria-pressed={Boolean(slot)}
@@ -233,6 +255,11 @@ const HeroTile = memo(function HeroTile({
             ⌖
           </span>
         )}
+        {pool?.length ? (
+          <span className={`tile-pool pool-tone-${pool[0]}`} aria-hidden>
+            {pool.join("·")}
+          </span>
+        ) : null}
         {slot === "banned" && (
           <span className={`tile-ban-mark tile-ban-${bannedBy ?? "loose"}`} aria-hidden />
         )}
@@ -288,6 +315,9 @@ export function HeroGrid({
   banSideOf,
   banSide,
   intent,
+  pooled,
+  poolEdit,
+  onTogglePool,
 }: HeroGridProps) {
   const { card, show, hide, keep, toggle, close } = useHoverCard();
 
@@ -389,8 +419,12 @@ export function HeroGrid({
       activeSlot={activeSlot}
       banSide={banSide}
       offRole={Boolean(highlightPosition) && !canPlay(hero, highlightPosition, minRoleFit)}
+      pool={pooled.get(hero.slug)}
+      poolEdit={poolEdit}
+      inEditedPool={poolEdit !== null && (pooled.get(hero.slug)?.includes(poolEdit) ?? false)}
       onAssign={onAssign}
       onRemove={onRemove}
+      onTogglePool={onTogglePool}
       onInfoEnter={show}
       onInfoLeave={hide}
       onInfoClick={toggle}

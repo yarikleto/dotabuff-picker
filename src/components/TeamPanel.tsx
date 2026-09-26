@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { HeroPortrait } from "./HeroPortrait";
 import { PositionPicker } from "./PositionPicker";
 import { POSITION_LABEL, missingPositions } from "../lib/roles";
@@ -15,6 +16,9 @@ interface TeamPanelProps {
   onClear: (slot: Slot) => void;
   onSetPosition: (slug: string, position: Position | null) => void;
   hint?: string;
+  /** Replaces the label in an open position's empty row — my team's role pools. */
+  renderOpenSlot?: (position: Position) => ReactNode;
+  headerAction?: ReactNode;
 }
 
 /** A team's five slots, each carrying the position you have that hero down for. */
@@ -30,6 +34,8 @@ export function TeamPanel({
   onClear,
   onSetPosition,
   hint,
+  renderOpenSlot,
+  headerAction,
 }: TeamPanelProps) {
   const empties = Math.max(0, size - picks.length);
   const taken = new Set(picks.map((p) => p.position).filter(Boolean) as Position[]);
@@ -53,11 +59,14 @@ export function TeamPanel({
             {picks.length}/{size}
           </span>
         </button>
-        {picks.length > 0 && (
-          <button type="button" className="link-btn" onClick={() => onClear(slot)}>
-            clear
-          </button>
-        )}
+        <span className="team-header-actions">
+          {headerAction}
+          {picks.length > 0 && (
+            <button type="button" className="link-btn" onClick={() => onClear(slot)}>
+              clear
+            </button>
+          )}
+        </span>
       </header>
 
       <ul className="team-list">
@@ -93,9 +102,13 @@ export function TeamPanel({
             <span className={`position-ghost ${missing[i] ? `pos-${missing[i]}` : ""}`}>
               {missing[i] ?? "–"}
             </span>
-            <div className="chip chip-empty">
-              {missing[i] && <span className="muted">{POSITION_LABEL[missing[i]!]}</span>}
-            </div>
+            {missing[i] && renderOpenSlot ? (
+              renderOpenSlot(missing[i]!)
+            ) : (
+              <div className="chip chip-empty">
+                {missing[i] && <span className="muted">{POSITION_LABEL[missing[i]!]}</span>}
+              </div>
+            )}
           </li>
         ))}
       </ul>

@@ -6,6 +6,7 @@ import { POSITION_LABEL } from "../lib/roles";
 import { RANK_BAND_LABEL } from "../lib/positions";
 import { TARGET_EARLY_COVER } from "../lib/timing";
 import type { OffRolePick } from "../lib/scoring";
+import type { PickRow } from "../lib/rolePools";
 import type { Position, RankBand, ScoreMode, Suggestion } from "../types";
 
 interface SuggestionsProps {
@@ -35,7 +36,18 @@ interface SuggestionsProps {
    * different kind of claim and the list says so in its own words.
    */
   offRole?: OffRolePick[];
+  /**
+   * Pick mode: where each row places and which role pools put it first — see
+   * `poolFirst`. Absent, rows are numbered in list order.
+   */
+  rows?: Map<string, PickRow>;
+  /** Heroes out of which `rows` places are counted, for the tooltip. */
+  rankedCount?: number;
+  /** Ban mode: every pooled hero and their roles, so banning a teammate's hero reads as such. */
+  poolRolesOf?: Map<string, Position[]>;
 }
+
+const roleList = (roles: Position[]) => roles.join("·");
 
 /**
  * Spells out the direction of a matchup chip, which otherwise only has room
@@ -76,6 +88,9 @@ export function Suggestions({
   robust,
   rankBand,
   offRole,
+  rows,
+  rankedCount,
+  poolRolesOf,
 }: SuggestionsProps) {
   const peak = Math.max(1, ...suggestions.map((s) => Math.abs(s.score)));
 
@@ -116,6 +131,11 @@ export function Suggestions({
       ) : (
         <ol className="suggestions">
           {suggestions.map((s, i) => {
+            const row = rows?.get(s.hero.slug);
+            const pooled = mode === "pick" ? (row?.pooled ?? []) : [];
+            const ownPool = mode === "ban" ? (poolRolesOf?.get(s.hero.slug) ?? []) : [];
+            const firstOther =
+              i > 0 && pooled.length === 0 && (rows?.get(suggestions[i - 1]!.hero.slug)?.pooled.length ?? 0) > 0;
             // Chips carry two decimals, so an edge is worth showing down to
             // 0.01; only a value that would render as a meaningless "±0.00" is
             // dropped, and the slot goes to the next real matchup instead.
@@ -139,9 +159,28 @@ export function Suggestions({
             ].filter((c) => c !== null);
 
             return (
-              <li key={s.hero.slug}>
+              <li
+                key={s.hero.slug}
+                className={[
+                  pooled.length ? `suggestion-pooled pool-tone-${pooled[0]}` : "",
+                  firstOther ? "suggestion-first-other" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <button type="button" className="suggestion" onClick={() => onApply(s)}>
-                  <span className="rank">{i + 1}</span>
+                  <span
+                    className="rank"
+                    title={
+                      row
+                        ? `${row.ranked ? "Ranks" : "Would rank"} ${row.place} of ${
+                            (rankedCount ?? 0) + (row.ranked ? 0 : 1)
+                          } for this seat on this board`
+                        : undefined
+                    }
+                  >
+                    {row?.place ?? i + 1}
+                  </span>
                   <HeroPortrait hero={s.hero} className="portrait-sm" />
                   <span className="suggestion-body">
                     <span className="suggestion-top">
@@ -179,6 +218,27 @@ export function Suggestions({
                     </span>
 
                     <span className="suggestion-meta">
+                      {pooled.length > 0 && (
+                        <span
+                          className={`tag tag-pool pool-tone-${pooled[0]}`}
+                          title={
+                            `In the pos ${roleList(pooled)} role pool, so listed first. ` +
+                            (row?.ranked === false
+                              ? "Below the role threshold for this seat, so the ranking proper leaves them out — scored anyway because the pool says they play it."
+                              : `Ranks ${row?.place} of ${rankedCount} on score alone.`)
+                          }
+                        >
+                          pool {roleList(pooled)}
+                        </span>
+                      )}
+                      {ownPool.length > 0 && (
+                        <span
+                          className={`tag tag-pool pool-tone-${ownPool[0]}`}
+                          title={`In your pos ${roleList(ownPool)} role pool — banning them takes them from your own team`}
+                        >
+                          your pool {roleList(ownPool)}
+                        </span>
+                      )}
                       {!!s.hero.topPositions?.length && (
                         <span
                           className="tag tag-pos"

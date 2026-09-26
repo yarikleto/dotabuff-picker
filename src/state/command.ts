@@ -35,6 +35,7 @@ interface Options {
   armed: Slot;
   banSide: BanSide;
   heroOf: (slug: string) => Hero | undefined;
+  poolSeat?: CommandContext["poolSeat"];
 }
 
 export function useDraftCommand({
@@ -46,11 +47,15 @@ export function useDraftCommand({
   armed,
   banSide,
   heroOf,
+  poolSeat,
 }: Options) {
   const [result, setResult] = useState<Result | null>(null);
 
   const note = text.trim();
-  const context = useMemo<CommandContext>(() => ({ armed, banSide, heroOf }), [armed, banSide, heroOf]);
+  const context = useMemo<CommandContext>(
+    () => ({ armed, banSide, heroOf, poolSeat }),
+    [armed, banSide, heroOf, poolSeat],
+  );
   const preview = useMemo(
     () => (read.isCommand && read.actions.length ? planCommand(draft, read.actions, context) : null),
     [read, draft, context],

@@ -4,6 +4,7 @@ import { EnemyIntent } from "./components/EnemyIntent";
 import { HeroGrid } from "./components/HeroGrid";
 import { PositionFilter } from "./components/PositionPicker";
 import { RankFilter } from "./components/RankFilter";
+import { PoolSlot, PoolsHeaderAction } from "./components/RolePools";
 import { Rebalance } from "./components/Rebalance";
 import { Suggestions } from "./components/Suggestions";
 import { BanPanel, TeamPanel } from "./components/TeamPanel";
@@ -28,14 +29,15 @@ import {
   offRolePicks,
   robustPicks,
   suggestBans,
-  suggestPicks,
 } from "./lib/scoring";
 import { intentScores, readIntent, readNearMisses } from "./lib/intent";
 import { bansBy } from "./lib/bans";
+import { poolFirst, poolIndex, poolSeat } from "./lib/rolePools";
 import { useDraftCommand } from "./state/command";
 import { TEAM_SIZE, useDraft } from "./state/draft";
 import { useSettings } from "./state/settings";
-import type { BanSide, Dataset, Position, Slot, SortMode, Suggestion } from "./types";
+import { useRolePools } from "./state/rolePools";
+import type { BanSide, Dataset, DraftPick, Position, Slot, SortMode, Suggestion } from "./types";
 
 const SLOT_LABEL: Record<Slot, string> = {
   mine: "My pick",
@@ -132,6 +134,8 @@ export default function App() {
    */
   const [gridPosition, setGridPosition] = useState<Position | null>(null);
   const [sort, setSort] = useState<SortMode>("attr");
+  /** The role whose pool a grid click edits; while set, clicks leave the draft alone. */
+  const [poolEdit, setPoolEdit] = useState<Position | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -151,6 +155,14 @@ export default function App() {
     total,
   } = useDraft();
   const { settings, update, reset: resetSettings } = useSettings();
+  const rolePools = useRolePools();
+  const pooled = useMemo(() => poolIndex(rolePools.pools), [rolePools.pools]);
+
+  /** Arming a draft slot ends pool editing, so a click always means what the selector shows. */
+  const armSlot = useCallback((slot: Slot) => {
+    setActiveSlot(slot);
+    setPoolEdit(null);
+  }, []);
   // Everything below reads this, so switching rank bands re-ranks the whole app at once.
   const dataset = useMemo(
     () => withRankBand(loadedDataset, settings.rankBand),
@@ -175,6 +187,7 @@ export default function App() {
       const typing =
         target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.tagName === "SELECT";
       if (e.key === "Escape") {
+        if (!searchRef.current?.value) setPoolEdit(null);
         setQuery("");
         searchRef.current?.blur();
         return;
@@ -182,7 +195,7 @@ export default function App() {
       if (typing || e.metaKey || e.ctrlKey) return;
       if (e.altKey && ["1", "2", "3"].includes(e.key)) {
         e.preventDefault();
-        setActiveSlot((["mine", "enemy", "banned"] as Slot[])[Number(e.key) - 1]!);
+        armSlot((["mine", "enemy", "banned"] as Slot[])[Number(e.key) - 1]!);
         return;
       }
       if (/^[a-zA-Z]$/.test(e.key) || e.key === "/") {
@@ -192,7 +205,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [armSlot]);
 
   const index = useMemo(() => buildSearchIndex(dataset.heroes), [dataset.heroes]);
   // The search box doubles as a command line: "they banned lina" filters the grid to Lina.
@@ -241,10 +254,21 @@ export default function App() {
   );
   const theirBanCount = useMemo(() => bansBy(draft.banned, "enemy").length, [draft.banned]);
 
-  const picks = useMemo(
-    () =>
-      dataset.hasData ? suggestPicks(dataset, draft, settings, effectivePickPosition, 10) : [],
+  const pickRanking = useMemo(
+    () => (dataset.hasData ? rankAll(dataset, draft, settings, effectivePickPosition, "pick") : []),
     [dataset, draft, settings, effectivePickPosition],
+  );
+  const pickRows = useMemo(
+    () =>
+      dataset.hasData
+        ? poolFirst(dataset, draft, settings, effectivePickPosition, pickRanking, rolePools.pools, 10)
+        : [],
+    [dataset, draft, settings, effectivePickPosition, pickRanking, rolePools.pools],
+  );
+  const picks = useMemo(() => pickRows.map((row) => row.suggestion), [pickRows]);
+  const pickRowOf = useMemo(
+    () => new Map(pickRows.map((row) => [row.suggestion.hero.slug, row])),
+    [pickRows],
   );
   const bans = useMemo(
     () => (dataset.hasData ? suggestBans(dataset, draft, settings, banPosition, 10, intentMap) : []),
@@ -257,8 +281,12 @@ export default function App() {
    */
   const offRole = useMemo(
     () =>
-      dataset.hasData ? offRolePicks(dataset, draft, settings, effectivePickPosition) : [],
-    [dataset, draft, settings, effectivePickPosition],
+      dataset.hasData
+        ? offRolePicks(dataset, draft, settings, effectivePickPosition).filter(
+            (o) => !pickRowOf.get(o.suggestion.hero.slug)?.pooled.length,
+          )
+        : [],
+    [dataset, draft, settings, effectivePickPosition, pickRowOf],
   );
 
   /**
@@ -561,7 +589,7 @@ export default function App() {
     );
   }, [gridRanking, visibleHeroes]);
 
-  /** Sorting by a mode also arms the matching click target — the usual next move. */
+  /** Sorting by a mode also arms the matching click target; pool editing stays on. */
   const changeSort = useCallback((next: SortMode) => {
     setSort(next);
     if (next === "pick") setActiveSlot("mine");
@@ -569,10 +597,9 @@ export default function App() {
   }, []);
 
   /**
-   * Adding a hero to a team also books them into a position: their most-played
-   * one among the slots that team still needs. Always overridable.
-   */
-  /**
+   * Adding a hero to a team also books them into a position: an open role whose
+   * pool lists them, else their most-played open slot. Always overridable.
+   *
    * `side` overrides the active ban side for one click — what Shift+Alt does on
    * a tile, and what the grid's ban button uses. Ignored outside the ban slot.
    */
@@ -580,17 +607,22 @@ export default function App() {
     (slug: string, slot: Slot, position?: Position | null, side?: BanSide) => {
       if (slot === "banned") return assign(slug, "banned", null, side ?? banSide);
       const team = slot === "mine" ? draft.mine : draft.enemy;
-      const guess = position ?? guessPosition(dataset.bySlug.get(slug), team);
-      assign(slug, slot, guess);
+      const hero = dataset.bySlug.get(slug);
+      const pooledSeat =
+        slot === "mine" ? poolSeat(rolePools.pools, hero, team, effectivePickPosition) : null;
+      assign(slug, slot, position ?? pooledSeat ?? guessPosition(hero, team));
     },
-    [assign, banSide, dataset.bySlug, draft.enemy, draft.mine],
+    [assign, banSide, dataset.bySlug, draft.enemy, draft.mine, rolePools.pools, effectivePickPosition],
   );
 
   /** The ban panel's two headers arm the slot and the side in one click. */
-  const activateBanSide = useCallback((slot: Slot, side: BanSide) => {
-    setActiveSlot(slot);
-    setBanSide(side);
-  }, []);
+  const activateBanSide = useCallback(
+    (slot: Slot, side: BanSide) => {
+      armSlot(slot);
+      setBanSide(side);
+    },
+    [armSlot],
+  );
 
   const applySuggestion = useCallback(
     (suggestion: Suggestion, slot: Slot) =>
@@ -599,6 +631,11 @@ export default function App() {
   );
 
   const heroOf = useCallback((slug: string) => dataset.bySlug.get(slug), [dataset.bySlug]);
+  const commandPoolSeat = useCallback(
+    (slug: string, team: DraftPick[]) =>
+      poolSeat(rolePools.pools, dataset.bySlug.get(slug), team, effectivePickPosition),
+    [rolePools.pools, dataset.bySlug, effectivePickPosition],
+  );
   const clearQuery = useCallback(() => setQuery(""), []);
   const commandLine = useDraftCommand({
     text: query,
@@ -609,6 +646,7 @@ export default function App() {
     armed: activeSlot,
     banSide,
     heroOf,
+    poolSeat: commandPoolSeat,
   });
 
   const onSearchKeyDown = useCallback(
@@ -617,10 +655,11 @@ export default function App() {
       if (commandLine.enter()) return;
       const top = visibleHeroes[0];
       if (!top) return;
-      assignHero(top.slug, e.shiftKey ? "banned" : activeSlot);
+      if (poolEdit) rolePools.add(poolEdit, top.slug);
+      else assignHero(top.slug, e.shiftKey ? "banned" : activeSlot);
       setQuery("");
     },
-    [commandLine, assignHero, activeSlot, visibleHeroes],
+    [commandLine, assignHero, activeSlot, visibleHeroes, poolEdit, rolePools.add],
   );
 
   const freshness = dataset.generatedAt ? shortDate(dataset.generatedAt) : null;
@@ -814,7 +853,13 @@ export default function App() {
             <button type="button" className="btn" onClick={swapTeams} disabled={!total}>
               Swap sides
             </button>
-            <button type="button" className="btn btn-danger" onClick={reset} disabled={!total}>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={reset}
+              disabled={!total}
+              title="Clear the draft. Role pools stay."
+            >
               Reset
             </button>
           </div>
@@ -1009,12 +1054,32 @@ export default function App() {
             picks={draft.mine}
             size={TEAM_SIZE}
             bySlug={dataset.bySlug}
-            active={activeSlot === "mine"}
-            onActivate={setActiveSlot}
+            active={activeSlot === "mine" && !poolEdit}
+            onActivate={armSlot}
             onRemove={remove}
             onClear={clearSlot}
             onSetPosition={setPosition}
             hint="Alt+1"
+            renderOpenSlot={(position) => (
+              <PoolSlot
+                position={position}
+                pools={rolePools.pools}
+                bySlug={dataset.bySlug}
+                slotOf={slotOf}
+                editing={poolEdit}
+                onEdit={setPoolEdit}
+                onPick={(slug, seat) => assignHero(slug, "mine", seat)}
+                onRemove={rolePools.toggle}
+              />
+            )}
+            headerAction={
+              <PoolsHeaderAction
+                pools={rolePools.pools}
+                cleared={rolePools.cleared}
+                onClear={() => rolePools.clear(null)}
+                onUndo={rolePools.undoClear}
+              />
+            }
           />
           <TeamPanel
             title="Enemy team"
@@ -1022,8 +1087,8 @@ export default function App() {
             picks={draft.enemy}
             size={TEAM_SIZE}
             bySlug={dataset.bySlug}
-            active={activeSlot === "enemy"}
-            onActivate={setActiveSlot}
+            active={activeSlot === "enemy" && !poolEdit}
+            onActivate={armSlot}
             onRemove={remove}
             onClear={clearSlot}
             onSetPosition={setPosition}
@@ -1032,7 +1097,7 @@ export default function App() {
           <BanPanel
             bans={draft.banned}
             bySlug={dataset.bySlug}
-            active={activeSlot === "banned"}
+            active={activeSlot === "banned" && !poolEdit}
             side={banSide}
             onActivate={activateBanSide}
             onRemove={remove}
@@ -1062,8 +1127,8 @@ export default function App() {
                   key={slot}
                   type="button"
                   className={`seg-btn tone-${slot}`}
-                  aria-pressed={activeSlot === slot}
-                  onClick={() => setActiveSlot(slot)}
+                  aria-pressed={activeSlot === slot && !poolEdit}
+                  onClick={() => armSlot(slot)}
                 >
                   <span className={`dot dot-${slot}`} aria-hidden />
                   {SLOT_LABEL[slot]}
@@ -1082,7 +1147,7 @@ export default function App() {
                   key={side}
                   type="button"
                   className={`seg-btn tone-ban-${side}`}
-                  aria-pressed={activeSlot === "banned" && banSide === side}
+                  aria-pressed={activeSlot === "banned" && banSide === side && !poolEdit}
                   onClick={() => activateBanSide("banned", side)}
                   title={
                     side === "enemy"
@@ -1137,7 +1202,28 @@ export default function App() {
                 <CommandStatus status={commandLine.status} onUndo={commandLine.undo} />
               )}
             </div>
-            {!commandLine.status && (
+            {!commandLine.status && poolEdit && (
+              <p className="hints muted pool-edit-hint">
+                Editing the{" "}
+                <strong className={`pool-tone-${poolEdit}`}>
+                  pos {poolEdit} · {POSITION_LABEL[poolEdit].toLowerCase()}
+                </strong>{" "}
+                pool — click heroes to add or remove them · <kbd>Enter</kbd> adds the top search hit ·{" "}
+                <kbd>Esc</kbd> finishes
+                {rolePools.pools[poolEdit].length > 0 && (
+                  <>
+                    {" "}·{" "}
+                    <button type="button" className="link-btn" onClick={() => rolePools.clear(poolEdit)}>
+                      clear this pool
+                    </button>
+                  </>
+                )}{" "}
+                <button type="button" className="btn btn-small" onClick={() => setPoolEdit(null)}>
+                  Done
+                </button>
+              </p>
+            )}
+            {!commandLine.status && !poolEdit && (
               <p className="hints muted">
                 Click a hero to add them as{" "}
                 <strong>
@@ -1188,6 +1274,9 @@ export default function App() {
               banSideOf={banSideOf}
               banSide={banSide}
               intent={intentMap}
+              pooled={pooled}
+              poolEdit={poolEdit}
+              onTogglePool={rolePools.toggle}
             />
           </div>
         </section>
@@ -1217,6 +1306,8 @@ export default function App() {
             positionsAvailable={dataset.hasPositions}
             rankBand={dataset.rankBand}
             offRole={offRole}
+            rows={pickRowOf}
+            rankedCount={pickRanking.length}
             robust={robustPickSlugs}
             onApply={(s) => applySuggestion(s, "mine")}
             emptyMessage={
@@ -1244,6 +1335,7 @@ export default function App() {
             positionsAvailable={dataset.hasPositions}
             rankBand={dataset.rankBand}
             robust={robustBanSlugs}
+            poolRolesOf={pooled}
             onApply={(s) => applySuggestion(s, "banned")}
             emptyMessage={
               dataset.hasData

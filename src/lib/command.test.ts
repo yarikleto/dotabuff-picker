@@ -303,6 +303,18 @@ test("'support' seats a hero at whichever of 4 and 5 they play more, if it is fr
   assert.equal(plan.next.enemy[1]?.position, 4);
 });
 
+test("a pick for my team takes the role pool seat, and a named seat still wins", () => {
+  const poolSeat = (slug: string) => (slug === "pudge" ? 3 : null);
+  const plan = planCommand(EMPTY_DRAFT, [act("pudge", "pick", "mine")], ctx({ poolSeat }));
+  assert.deepEqual(plan.next.mine, [{ slug: "pudge", position: 3 }]);
+
+  const named = planCommand(EMPTY_DRAFT, [act("pudge", "pick", "mine", 5)], ctx({ poolSeat }));
+  assert.equal(named.next.mine[0]?.position, 5);
+
+  const theirs = planCommand(EMPTY_DRAFT, [act("pudge", "pick", "enemy")], ctx({ poolSeat }));
+  assert.notEqual(theirs.next.enemy[0]?.position, 3, "my pools say nothing about their seats");
+});
+
 test("several actions see each other's seats", () => {
   const plan = planCommand(EMPTY_DRAFT, [act("lina", "pick", "mine"), act("lion", "pick", "mine")], ctx());
   const seats = plan.next.mine.map((p) => p.position);

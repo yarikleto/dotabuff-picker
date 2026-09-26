@@ -3904,3 +3904,176 @@ code {
   opacity: 0.85;
   font-variant-numeric: tabular-nums;
 }
+
+/* ------------------------------------------------------------- role pools */
+
+/* A pool wears its position's colour everywhere it shows: team row, list and grid. */
+.pool-tone-1 { --pool-tone: var(--pos-1); }
+.pool-tone-2 { --pool-tone: var(--pos-2); }
+.pool-tone-3 { --pool-tone: var(--pos-3); }
+.pool-tone-4 { --pool-tone: var(--pos-4); }
+.pool-tone-5 { --pool-tone: var(--pos-5); }
+
+.team-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* An open seat on my team carrying its role's pool. Grows past one line rather
+ * than clipping a long pool, and drops the empty row's dimming for the faces. */
+.chip-empty.pool-slot {
+  height: auto;
+  min-height: 30px;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 2px 4px 2px 5px;
+  opacity: 1;
+}
+
+.pool-slot > .muted {
+  opacity: 0.5;
+  padding-left: 5px;
+}
+
+.pool-slot-filled {
+  border-style: solid;
+  border-color: var(--line-soft);
+}
+
+.chip-empty.pool-slot-open {
+  border-style: solid;
+  border-color: var(--pool-tone);
+  background: color-mix(in srgb, var(--pool-tone) 12%, transparent);
+}
+
+.pool-slot-edit {
+  margin-left: auto;
+  padding: 0 2px;
+  font-size: 11px;
+}
+
+.pool-slot-edit[aria-pressed="true"] {
+  color: var(--text);
+}
+
+/* Five faces and the edit link fit one row of the narrowest (280px) column. */
+.portrait-pool {
+  width: 34px;
+  height: 19px;
+  border-radius: 3px;
+  aspect-ratio: auto;
+  flex: none;
+}
+
+.pool-hero {
+  position: relative;
+  display: block;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: none;
+  line-height: 0;
+}
+
+.pool-slot:not(.pool-slot-open) button.pool-hero:hover:not(:disabled) {
+  border-color: var(--mine);
+}
+
+.pool-slot-open button.pool-hero:hover {
+  border-color: var(--enemy);
+}
+
+button.pool-hero:disabled {
+  cursor: default;
+}
+
+.pool-hero-x {
+  position: absolute;
+  top: -1px;
+  right: 1px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text);
+  text-shadow: 0 0 3px #000, 0 0 3px #000;
+}
+
+button.pool-hero:hover .pool-hero-x {
+  color: var(--bad-text);
+}
+
+/* What the draft has done to the pool: taken by us, taken from us, or banned. */
+.pool-hero-mine {
+  border-color: var(--mine);
+  box-shadow: 0 0 0 1px var(--mine);
+}
+
+.pool-hero-enemy,
+.pool-hero-banned {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.pool-hero-enemy {
+  border-color: var(--enemy);
+}
+
+.pools-cleared {
+  font-size: 11px;
+}
+
+.pool-edit-hint strong {
+  color: var(--pool-tone);
+}
+
+.pool-edit-hint .btn-small {
+  margin-left: 4px;
+  vertical-align: baseline;
+}
+
+/* Pooled rows lead the pick list; the tone says whose pool, the divider where it ends. */
+.suggestion-pooled > .suggestion {
+  border-left: 3px solid var(--pool-tone);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pool-tone) 14%, transparent), transparent 70%);
+}
+
+.suggestion-first-other {
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--line);
+}
+
+.tag.tag-pool {
+  color: var(--pool-tone);
+  border-color: color-mix(in srgb, var(--pool-tone) 55%, var(--line));
+  font-weight: 600;
+}
+
+/* Bottom right of the portrait: the other three corners carry positions, score and rank. */
+.tile-pool {
+  position: absolute;
+  bottom: 20px;
+  right: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--radius-xs);
+  color: var(--bg);
+  background: var(--pool-tone);
+  pointer-events: none;
+}
+
+.tile.tile-in-pool {
+  border-color: var(--pool-tone);
+  box-shadow: inset 0 0 0 1px var(--pool-tone);
+}
+
+.tile-wrap-pool:hover {
+  box-shadow: 0 0 13px -6px var(--pool-tone);
+}
+.tile-wrap-pool:hover .tile {
+  border-color: var(--pool-tone);
+  background: linear-gradient(to top, color-mix(in srgb, var(--pool-tone) 18%, transparent), transparent 62%), var(--bg-tile);
+}

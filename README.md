@@ -91,12 +91,13 @@ matchup pages, so counters carry no patch of their own.
 | `Enter` | Takes the top search hit; `Shift`+`Enter` bans it |
 | Type what happened, then `Enter` | Picks, bans, removes and seats heroes for either side — see [Typing the draft](#typing-the-draft) |
 | `Alt`+`1/2/3` | Switches the active slot |
-| `Esc` | Clears the search |
+| `Esc` | Clears the search, or ends pool editing |
 | Hover the **i** on a tile | Opens the full breakdown for that hero |
 | Click a face under **Countered by** | Bans that counter |
 | Click a face under **Best with** | Adds that hero to your team |
 | **Draft analysis** in the top bar | The win chance, the game plan, the matchup map and the full breakdown of the draft on the board |
 | **Rebalance** in the top bar | The same five heroes in better seats, when there are any |
+| **+ pool** in an open row of **My team**, then heroes in the grid | Fills a teammate's hero pool for that position; the pick list puts those heroes first — see [Role pools](docs/ui.md#role-pools) |
 
 Your picks are green, the enemy's are red, bans are greyed out and crossed
 through. Once the enemy has heroes on the board, every remaining tile shows its

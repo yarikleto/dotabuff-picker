@@ -393,6 +393,40 @@ well as Valve's internal names (`nevermore`, `furion`, `wisp`, `zuus`).
 
 The draft, the rank and the tuning sliders survive a page reload.
 
+## Role pools
+
+For a Battle Cup, where teammates each play a handful of heroes, every open
+position on **My team** doubles as that role's pool:
+
+- **Filling a pool.** Click **+ pool** (or **✎** once it has heroes) in a
+  position's row, then click heroes in the grid: a click adds a hero, a second
+  click removes them, and `Enter` adds the top search hit. Heroes already in the
+  pool are ringed in the position's colour. **Done**, `Esc` or any of the
+  click-target buttons above the grid ends the editing. While a pool is open its
+  faces carry a × to remove them, and the line above the grid offers **clear
+  this pool**.
+- **Picking from a pool.** Click a face in the row to put that hero on your team
+  at that position. A hero the enemy took or banned is greyed out.
+- **The pick list.** Heroes from the pool of the position being drafted for come
+  first, best to worst, highlighted in that position's colour and tagged
+  `pool N`, followed by the best of everyone else. The number beside each hero
+  is their place in the whole ranking for that seat, so a pool hero numbered 51
+  is a weak pick on this board and the call is yours. A pool hero is scored even
+  when the role threshold would drop them, since the pool says the teammate
+  plays them there. With `Any` selected, the pools of every position your team
+  still needs come first, so the list runs past ten rows.
+- **Seats.** A hero from a pool joins your team at that pool's position when it
+  is open, whether picked from the list, the grid or a typed command, so a pos 3
+  Pudge is booked at 3 rather than at his usual 4 or 5.
+- **Elsewhere.** A pooled hero carries the position number in the corner of
+  their tile, and in the ban list a `your pool N` tag.
+
+A pool shows in its row only while that position is open. Once the seat is
+filled the row holds the hero instead, and every pool is back after **Reset**.
+Pools are kept apart from the draft: **Reset** and **Restore defaults** leave
+them alone, so they carry over from game to game of a cup. **clear pools** in the
+My team header empties every pool, with an **undo** until the next change.
+
 ## Rebalancing your five
 
 Every other panel helps you choose the *next* hero. **Rebalance** is for the
