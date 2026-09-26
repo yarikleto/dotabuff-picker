@@ -277,8 +277,13 @@ code {
 }
 
 @media (max-width: 1040px) {
+  /*
+   * `.col` gives up its content minimum so each wide column scrolls inside
+   * itself; stacked, auto rows would then split the board's height evenly.
+   */
   .layout {
     grid-template-columns: 1fr;
+    grid-auto-rows: max-content;
     overflow-y: auto;
   }
   .col-left,
