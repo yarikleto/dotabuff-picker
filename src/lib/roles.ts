@@ -1,4 +1,5 @@
 import type { DraftPick, Hero, Lane, LanePlan, Position } from "../types";
+import type { Calibration } from "./winModel";
 
 export const POSITIONS: Position[] = [1, 2, 3, 4, 5];
 
@@ -70,6 +71,37 @@ export const positionFit = (hero: Hero | undefined, position: Position | null): 
 /** Position-specific win rate where we have one, otherwise the overall figure. */
 export const positionWinRate = (hero: Hero, position: Position | null): number =>
   (position ? hero.positionWinRate?.[position] : undefined) ?? hero.winRate ?? 50;
+
+/**
+ * What a point of seat record above the hero's own is worth against a point of
+ * hero strength, from the calibration's fitted weights; 1 without one.
+ *
+ * STRATZ files positions partly by outcome — a mid Leshrac who ends the game
+ * richest is booked as pos 1 — so a seat's surplus carries some of the result
+ * it is meant to predict. The fit measures how much survives: about a quarter.
+ */
+export function seatBonusShare(calibration: Calibration | null | undefined): number {
+  if (!calibration) return 1;
+  const { seatBonus, heroes } = calibration.weights;
+  if (!(heroes > 0)) return 1;
+  return Math.min(1, Math.max(0, seatBonus / heroes));
+}
+
+/**
+ * The win rate the pick list scores a hero at in a seat: their seat record,
+ * with any surplus over their own record counted at `seatBonusShare`. A seat
+ * below their record is charged in full.
+ */
+export function seatWorth(
+  hero: Hero,
+  position: Position | null,
+  calibration: Calibration | null | undefined,
+): number {
+  const seat = positionWinRate(hero, position);
+  const own = hero.winRate;
+  if (own === undefined || seat <= own) return seat;
+  return own + (seat - own) * seatBonusShare(calibration);
+}
 
 /**
  * Whether a hero is a plausible pick for a position.

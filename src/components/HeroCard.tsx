@@ -649,6 +649,9 @@ export function HeroCard({
       label: "Meta",
       detail:
         `${detail.winRate.toFixed(1)}% ${winRateBasis}` +
+        (detail.seatWorth.toFixed(1) !== detail.winRate.toFixed(1)
+          ? ` · scored as ${detail.seatWorth.toFixed(1)}%`
+          : "") +
         (mode === "ban" && hero.pickRate ? ` · ${hero.pickRate.toFixed(1)}% picked` : "") +
         ` · ×${settings.metaWeight.toFixed(2)}`,
     },

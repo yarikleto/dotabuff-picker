@@ -1,6 +1,6 @@
 import { NOISE, draftBalance } from "./scoring";
 import { laneScoreboard, verdictFor } from "./analysis";
-import { POSITIONS, canPlay, positionFit, positionWinRate } from "./roles";
+import { POSITIONS, canPlay, positionFit, seatWorth } from "./roles";
 import { WIN_GROUPS, verdictForChance, winChance } from "./winModel";
 import type { WinGroup } from "./winModel";
 import type { DraftView } from "./scoring";
@@ -407,9 +407,9 @@ const PLANS: LanePlan[] = ["standard", "swapped"];
  *
  * The term `evaluate` uses and `draftBalance` cannot: the hero's record in that
  * specific position. How far the seat is from what they actually play is inside
- * that record — `positionWinRate` carries the measured worth of a seat of its
- * share, see `estimateSeatPrior` — so "Earth Spirit is a 4" cannot come to mean
- * one thing in the suggestion list and another in this panel.
+ * that record, and `seatWorth` reads it exactly as `evaluate` does — so "Earth
+ * Spirit is a 4" cannot come to mean one thing in the suggestion list and
+ * another in this panel.
  *
  * A third term used to live here: the gap between a hero's offlane and
  * safe-lane records, charged only when the deployment changed. It was a
@@ -419,8 +419,8 @@ const PLANS: LanePlan[] = ["standard", "swapped"];
  * both sides and on every arrangement, so this is back to being what its name
  * says: what a hero is worth in a *seat*.
  */
-function heroFit(hero: Hero, position: Position, settings: Settings): number {
-  return settings.metaWeight * (positionWinRate(hero, position) - 50);
+function heroFit(data: Dataset, hero: Hero, position: Position, settings: Settings): number {
+  return settings.metaWeight * (seatWorth(hero, position, data.calibration) - 50);
 }
 
 /**
@@ -438,7 +438,7 @@ function lineupFit(data: Dataset, picks: DraftPick[], settings: Settings): numbe
   for (const pick of picks) {
     const hero = data.bySlug.get(pick.slug);
     if (!hero || !pick.position) continue;
-    total += heroFit(hero, pick.position, settings);
+    total += heroFit(data, hero, pick.position, settings);
     counted++;
   }
   return counted ? total / counted : 0;

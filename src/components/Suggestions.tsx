@@ -224,7 +224,10 @@ export function Suggestions({
                           className="tag"
                           title={
                             position && s.hero.positionWinRate?.[position] !== undefined
-                              ? `Win rate as pos ${position}${band} — the figure the Meta term is scored from`
+                              ? `Win rate as pos ${position}${band}` +
+                                (s.seatWorth.toFixed(1) !== s.winRate.toFixed(1)
+                                  ? ` — the Meta term scores it as ${s.seatWorth.toFixed(1)}%, counting a seat above the hero's own record at the share the win-chance calibration measured`
+                                  : " — the figure the Meta term is scored from")
                               : position
                                 ? `Overall win rate — Dotabuff has no pos ${position} row for this hero`
                                 : `Overall win rate${band}`

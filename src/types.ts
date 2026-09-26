@@ -446,8 +446,13 @@ export interface Suggestion {
    * of early heroes and pretending otherwise would just be a second meta term.
    */
   earlyPenalty: number;
-  /** Win rate the meta term was built from — position-specific where known. */
+  /** The hero's win rate in `position` where known, otherwise overall. */
   winRate: number;
+  /**
+   * The win rate the meta term scores: `winRate`, with any surplus over the
+   * hero's own record counted at the calibrated share — see `seatWorth`.
+   */
+  seatWorth: number;
   /** The position this suggestion is being made for, if any. */
   position: Position | null;
   contributions: ScoreContribution[];

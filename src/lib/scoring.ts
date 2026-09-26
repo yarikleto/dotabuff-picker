@@ -1,4 +1,4 @@
-import { canPlay, isCore, laneOpponents, playsRole, positionFit, positionWinRate } from "./roles";
+import { canPlay, isCore, laneOpponents, playsRole, positionFit, positionWinRate, seatWorth } from "./roles";
 import { earlyCover, earlyCoverPenalty, teamCover } from "./timing";
 import { banSlugs } from "./bans";
 import { laneCounter } from "./lanes";
@@ -96,8 +96,10 @@ const BAN_POPULARITY_WEIGHT = 0.2;
 /**
  * A hero seated where they rarely go is charged by `positionWinRate`, which
  * carries the measured worth of a seat of that share — see `estimateSeatPrior`
- * in positions.ts. There is no second term for it, and there should not be:
- * a hand-set stretch cost added to a measured one is the same effect priced
+ * in positions.ts — and a seat above their own record is credited at the
+ * calibrated share `seatWorth` applies. There is no second term for it, and
+ * there should not be: a hand-set stretch cost added to a measured one is the
+ * same effect priced
  * twice, and the two disagreed. Leshrac wins 60.2% of 16,311 safe-lane games
  * and the pair of them together scored that seat at −0.12.
  *
@@ -637,8 +639,9 @@ function evaluate(
   const { mean, contributions } = scoreAgainst(data, hero, position, opponents, settings, plan);
   const withTeam = scoreWith(data, hero, position, allies, settings);
   const roleFit = positionFit(hero, position);
+  const worth = seatWorth(hero, position, data.calibration);
   const metaScore =
-    mode === "ban" ? winRate - 50 + BAN_POPULARITY_WEIGHT * (hero.pickRate ?? 0) : winRate - 50;
+    mode === "ban" ? worth - 50 + BAN_POPULARITY_WEIGHT * (hero.pickRate ?? 0) : worth - 50;
 
   /**
    * The one term that comes from the opponent rather than from the table.
@@ -705,6 +708,7 @@ function evaluate(
     teamEarlyCover,
     earlyPenalty,
     winRate,
+    seatWorth: worth,
     position,
     contributions,
     synergyContributions: withTeam.contributions,

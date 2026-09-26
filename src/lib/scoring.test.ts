@@ -19,6 +19,7 @@ import {
   synergy,
 } from "./scoring.ts";
 import { guessPosition, missingPositions, playsRole } from "./roles.ts";
+import type { Calibration } from "./winModel.ts";
 import { deriveTimingShape } from "./timing.ts";
 import type { CounterModel } from "./lanes.ts";
 import type {
@@ -1314,4 +1315,49 @@ test("the board read and the pick list agree about a lane pairing", () => {
   // The same figure the suggestion list would have shown for that pick.
   const suggested = heroDetail(seatAware, versusVillain, settings, "counter", 3, "pick");
   assert.ok(Math.abs((seated?.counter ?? 0) - (suggested?.matchupScore ?? 0)) < 1e-9);
+});
+
+const SEAT_CALIBRATION: Calibration = {
+  generatedAt: null,
+  matches: 300_000,
+  matchIdRange: null,
+  rankBand: "all",
+  tau: 0.5,
+  weights: {
+    matchups: 0.046,
+    cohesion: 0.02,
+    heroes: 0.052,
+    seatPenalty: 0.03,
+    seatBonus: 0.013,
+    roleDeficit: 0,
+    timing: 0.09,
+  },
+  range: [0.15, 0.85],
+  inputs: {},
+  holdout: null,
+  reliability: [],
+};
+
+test("a seat above the hero's own record is scored at the calibrated share", () => {
+  const base = makeDataset();
+  const flexer = hero("flexer", {
+    winRate: 51,
+    positions: { 1: 0.1, 2: 0.7, 4: 0.2 },
+    positionWinRate: { 1: 60, 2: 51, 4: 46 },
+  });
+  const heroes = [...base.heroes, flexer];
+  const data: Dataset = { ...base, heroes, bySlug: new Map(heroes.map((h) => [h.slug, h])) };
+  const calibrated: Dataset = { ...data, calibration: SEAT_CALIBRATION };
+  const draft = { mine: [], enemy: [], banned: [] };
+
+  const raw = heroDetail(data, draft, DEFAULT_SETTINGS, "flexer", 1, "pick");
+  assert.equal(raw?.seatWorth, 60, "without a calibration the seat record stands");
+
+  const surplus = heroDetail(calibrated, draft, DEFAULT_SETTINGS, "flexer", 1, "pick");
+  assert.equal(surplus?.winRate, 60, "the measured record is still what is shown");
+  assert.equal(surplus?.seatWorth, 51 + 9 * 0.25);
+  assert.equal(surplus?.metaScore, 51 + 9 * 0.25 - 50);
+
+  const deficit = heroDetail(calibrated, draft, DEFAULT_SETTINGS, "flexer", 4, "pick");
+  assert.equal(deficit?.seatWorth, 46, "a seat below the hero's record is charged in full");
 });

@@ -21,7 +21,7 @@ about, so **synergies** come from OpenDota instead — see below.
 
 - **Pick score** = lane-weighted average advantage against the enemy heroes
   drafted so far, plus `synergyWeight × average synergy with your own picks`,
-  plus `metaWeight × (win rate for that position − 50)`, minus an **early-game
+  plus `metaWeight × (seat worth − 50)`, minus an **early-game
   penalty** if the line-up this hero would join has nobody who functions before
   the median game length.
 - **Ban score** = the same ranking run from the enemy's seat: matchups against
@@ -45,10 +45,23 @@ it is. See [Where positions come from](#where-positions-come-from).
 That measurement is the off-role effect itself: on the live table the seats a
 hero is almost never put in run about 7.4 points below their own figure, and the
 effect is flat above roughly a fifth of their games. So Crystal Maiden reads
-39.5% at pos 1 and is nowhere near the safe-lane list, while Leshrac — who
-safe-lanes in 7.6% of his games and wins 60.2% of them over 16,311 games — tops
-it. Flexing someone off-role is a real drafting move, and the suggestion shows
-their position share so you can see the stretch.
+39.5% at pos 1 and is nowhere near the safe-lane list. Flexing someone off-role
+is a real drafting move, and the suggestion shows their position share so you
+can see the stretch.
+
+A seat that reads *above* the hero's own record is scored at less than face
+value. STRATZ files positions partly by outcome — a mid Leshrac who ends the
+game richest is booked as pos 1 — so a surplus carries some of the result it is
+meant to predict. The **seat worth** the meta term uses is the seat's win rate
+with any surplus over the hero's own record multiplied by
+`seatBonus / heroes` from the [calibration](#win-chance), the share of a point
+of seat bonus the fitted model finds is worth a point of hero strength: 0.23 in
+the committed fit. A seat below the hero's record is charged in full. At
+Divine+, Leshrac wins 61.7% of 2,397 pos 1 games against 51.9% overall; the
+seat estimate keeps 60.3%, and the meta term scores it as 53.8% — level with
+Spectre's 53.8% over 118,824 games rather than six points clear. The tile shows
+the measured figure and the card shows both. Without `calibration.json` the
+seat's win rate is scored as it stands.
 
 Being the *usual* occupant of a seat earns nothing. Above about a fifth of a
 hero's games the measured effect is flat, so a hero played somewhere 95% of the
