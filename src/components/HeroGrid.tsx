@@ -112,6 +112,7 @@ const HeroTile = memo(function HeroTile({
   pool,
   poolEdit,
   inEditedPool,
+  frame,
   onAssign,
   onRemove,
   onTogglePool,
@@ -139,6 +140,8 @@ const HeroTile = memo(function HeroTile({
   pool: Position[] | undefined;
   poolEdit: Position | null;
   inEditedPool: boolean;
+  /** The pool whose colour frames the tile, so pooled heroes stand out while browsing. */
+  frame: Position | null;
   onAssign: HeroGridProps["onAssign"];
   onRemove: HeroGridProps["onRemove"];
   onTogglePool: HeroGridProps["onTogglePool"];
@@ -215,8 +218,8 @@ const HeroTile = memo(function HeroTile({
     >
       <button
         type="button"
-        className={`tile ${slot ? `tile-${slot}` : ""} ${offRole && !poolEdit ? "tile-offrole" : ""} ${
-          inEditedPool ? `tile-in-pool pool-tone-${poolEdit}` : ""
+        className={`tile ${slot ? `tile-${slot}` : ""} ${offRole && !poolEdit && !frame ? "tile-offrole" : ""} ${
+          frame ? `tile-pooled pool-tone-${frame}` : ""
         }`}
         onClick={handleClick}
         onContextMenu={(e) => {
@@ -405,6 +408,20 @@ export function HeroGrid({
     return place !== undefined && place <= RANKED_TILES ? place : undefined;
   };
 
+  /**
+   * Editing frames the pool being edited, taken heroes included. Otherwise the
+   * pool of the grid's position filter, or every pool on Any; a hero already on
+   * the board keeps their team's frame.
+   */
+  const poolFrame = (slug: string): Position | null => {
+    const roles = pooled.get(slug);
+    if (!roles) return null;
+    if (poolEdit !== null) return roles.includes(poolEdit) ? poolEdit : null;
+    if (slotOf.has(slug)) return null;
+    if (highlightPosition !== null) return roles.includes(highlightPosition) ? highlightPosition : null;
+    return roles[0]!;
+  };
+
   const tile = (hero: Hero) => (
     <HeroTile
       key={hero.slug}
@@ -422,6 +439,7 @@ export function HeroGrid({
       pool={pooled.get(hero.slug)}
       poolEdit={poolEdit}
       inEditedPool={poolEdit !== null && (pooled.get(hero.slug)?.includes(poolEdit) ?? false)}
+      frame={poolFrame(hero.slug)}
       onAssign={onAssign}
       onRemove={onRemove}
       onTogglePool={onTogglePool}

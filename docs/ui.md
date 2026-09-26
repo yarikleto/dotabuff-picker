@@ -396,12 +396,14 @@ The draft, the rank and the tuning sliders survive a page reload.
 ## Role pools
 
 For a Battle Cup, where teammates each play a handful of heroes, every open
-position on **My team** doubles as that role's pool:
+position on **My team** lists that role's pool in small faces under the role
+name. The seat still reads as empty: the pool is a suggestion, and any hero can
+go there.
 
 - **Filling a pool.** Click **+ pool** (or **✎** once it has heroes) in a
   position's row, then click heroes in the grid: a click adds a hero, a second
   click removes them, and `Enter` adds the top search hit. Heroes already in the
-  pool are ringed in the position's colour. **Done**, `Esc` or any of the
+  pool are framed in the position's colour. **Done**, `Esc` or any of the
   click-target buttons above the grid ends the editing. While a pool is open its
   faces carry a × to remove them, and the line above the grid offers **clear
   this pool**.
@@ -418,8 +420,12 @@ position on **My team** doubles as that role's pool:
 - **Seats.** A hero from a pool joins your team at that pool's position when it
   is open, whether picked from the list, the grid or a typed command, so a pos 3
   Pudge is booked at 3 rather than at his usual 4 or 5.
-- **Elsewhere.** A pooled hero carries the position number in the corner of
-  their tile, and in the ban list a `your pool N` tag.
+- **In the grid.** A pooled hero's tile is framed in the position's colour and
+  carries the position number in its corner. With the grid's position filter
+  on a seat, only that seat's pool is framed; on `Any`, every pool is. A pooled
+  hero is not dimmed under a filter for their pool's seat, even when they rarely
+  play it.
+- **In the ban list.** A pooled hero carries a `your pool N` tag.
 
 A pool shows in its row only while that position is open. Once the seat is
 filled the row holds the hero instead, and every pool is back after **Reset**.
