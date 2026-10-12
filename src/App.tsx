@@ -9,6 +9,7 @@ import { Rebalance } from "./components/Rebalance";
 import { Suggestions } from "./components/Suggestions";
 import { BanPanel, TeamPanel } from "./components/TeamPanel";
 import { CommandStatus } from "./components/CommandStatus";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { readCommand } from "./lib/command";
 import { emptyDataset, loadDataset } from "./lib/dataset";
 import { withRankBand } from "./lib/positions";
@@ -36,6 +37,7 @@ import { poolFirst, poolIndex, poolSeat } from "./lib/rolePools";
 import { useDraftCommand } from "./state/command";
 import { TEAM_SIZE, useDraft } from "./state/draft";
 import { useSettings } from "./state/settings";
+import { useTheme } from "./state/theme";
 import { useRolePools } from "./state/rolePools";
 import type { BanSide, Dataset, DraftPick, Position, Slot, SortMode, Suggestion } from "./types";
 
@@ -155,6 +157,7 @@ export default function App() {
     total,
   } = useDraft();
   const { settings, update, reset: resetSettings } = useSettings();
+  const { theme, toggle: toggleTheme } = useTheme();
   const rolePools = useRolePools();
   const pooled = useMemo(() => poolIndex(rolePools.pools), [rolePools.pools]);
 
@@ -864,6 +867,8 @@ export default function App() {
             </button>
           </div>
         </div>
+
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </header>
 
       {showSettings && (

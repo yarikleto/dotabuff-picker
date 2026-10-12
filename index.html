@@ -10,6 +10,22 @@
     <meta name="theme-color" content="#0f1419" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>Dota 2 Draft Picker</title>
+    <!-- Before first paint, so a light page never flashes dark. Mirrors src/state/theme.ts. -->
+    <script>
+      (function () {
+        var theme = null;
+        try {
+          theme = localStorage.getItem("dotabuff-picker.theme");
+        } catch (e) {}
+        if (theme !== "dark" && theme !== "light") {
+          theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }
+        document.documentElement.dataset.theme = theme;
+        if (theme === "light") {
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#e9eef3");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -54,12 +54,15 @@ npm run readme:images   # re-render docs/assets/banner.jpg and screenshot.jpg
   and `scripts/ts-resolve.mjs` resolves the extensionless imports.
 - Every control in `src/styles.css` is one of: `.btn` for an action
   (`.btn-primary` for the one the top bar leads with, `.btn-alert` when it has
-  found something, `.btn-danger` for Reset, `.btn-small` inside a panel),
+  found something, `.btn-danger` for Reset, `.btn-small` inside a panel,
+  `.btn-icon` for a glyph alone such as the theme toggle),
   `.seg` + `.seg-btn` for a choice between a few options, `.pos-chip` when the
   options are positions, `.link-btn` for a quiet inline action, and `.tag` for
   status, which is never clickable. An open panel or pressed toggle shows
   through `aria-expanded` / `aria-pressed`, not a reworded label. Colours,
-  radii and fills come from the `:root` tokens; the wide panels share `.sheet`.
+  radii and fills come from the `:root` tokens, and `:root[data-theme="light"]`
+  redefines every colour token for the light theme, so a new colour is a new
+  token in both blocks. The wide panels share `.sheet`.
 
 ## Licensing
 

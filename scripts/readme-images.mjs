@@ -124,7 +124,8 @@ async function capture(win, name) {
 async function screenshot(ses) {
   const win = await openAt(ses, INDEX, 1440, 900);
   await win.webContents.executeJavaScript(
-    `localStorage.setItem("dotabuff-picker.draft.v3", ${JSON.stringify(JSON.stringify(DRAFT))})`,
+    `localStorage.setItem("dotabuff-picker.draft.v3", ${JSON.stringify(JSON.stringify(DRAFT))});
+     localStorage.setItem("dotabuff-picker.theme", "dark")`,
   );
   await win.loadURL(INDEX);
   await until(win, `!!document.querySelector(".tag-good") && ${IMAGES_DONE}`, "the data and portraits");
