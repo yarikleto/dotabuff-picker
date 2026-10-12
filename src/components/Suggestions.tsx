@@ -459,22 +459,24 @@ export function Suggestions({
               <li key={s.hero.slug}>
                 <button type="button" className="off-role-pick" onClick={() => onApply(s)}>
                   <HeroPortrait hero={s.hero} className="portrait-sm" />
-                  <span className="off-role-name">{s.hero.name}</span>
-                  <span
-                    className="tag tag-lane tag-good"
-                    title={
-                      `From this seat against ${against.name} the games went ` +
-                      `${formatSigned(against.laneEdge ?? 0, 2)} beyond their whole-game matchup, ` +
-                      `over ${(against.laneLanes ?? 0).toLocaleString()} lanes.`
-                    }
-                  >
-                    ⚔ {against.name} {formatSigned(against.laneEdge ?? 0, 2)}
-                  </span>
-                  <span
-                    className="tag"
-                    title={`${(100 * s.roleFit).toFixed(1)}% of this hero's games are played here — their record in this seat is already in the score`}
-                  >
-                    {(100 * s.roleFit).toFixed(1)}% of games
+                  <span className="off-role-body">
+                    <span className="off-role-name">{s.hero.name}</span>
+                    <span
+                      className="tag tag-lane tag-good"
+                      title={
+                        `From this seat against ${against.name} the games went ` +
+                        `${formatSigned(against.laneEdge ?? 0, 2)} beyond their whole-game matchup, ` +
+                        `over ${(against.laneLanes ?? 0).toLocaleString()} lanes.`
+                      }
+                    >
+                      ⚔ {against.name} {formatSigned(against.laneEdge ?? 0, 2)}
+                    </span>
+                    <span
+                      className="tag"
+                      title={`${(100 * s.roleFit).toFixed(1)}% of this hero's games are played here — their record in this seat is already in the score`}
+                    >
+                      {(100 * s.roleFit).toFixed(1)}% of games
+                    </span>
                   </span>
                   <span className={`score ${tone(s.score)}`}>{formatSigned(mine(s.score))}</span>
                 </button>

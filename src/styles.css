@@ -372,12 +372,10 @@ code {
 
 .col-left,
 .col-right {
-  overflow-x: hidden;
   overflow-y: auto;
 }
 
 .grid-scroll {
-  overflow-x: hidden;
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -398,7 +396,6 @@ code {
   .layout {
     grid-template-columns: 1fr;
     grid-auto-rows: max-content;
-    overflow-x: hidden;
     overflow-y: auto;
   }
   .col-left,
@@ -1315,6 +1312,17 @@ code {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+/* The four pick/ban targets are wider than a phone column at their usual padding. */
+@media (max-width: 480px) {
+  .controls > .seg {
+    width: 100%;
+  }
+  .controls > .seg .seg-btn {
+    flex: 1;
+    padding-inline: 6px;
+  }
 }
 
 .search {
@@ -4117,7 +4125,18 @@ code {
   border-color: var(--line);
 }
 
+/* Wraps so the chips drop under the name rather than widening the column. */
+.off-role-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 6px;
+}
+
 .off-role-name {
+  max-width: 100%;
   font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
