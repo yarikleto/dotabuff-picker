@@ -372,10 +372,12 @@ code {
 
 .col-left,
 .col-right {
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
 .grid-scroll {
+  overflow-x: hidden;
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -396,6 +398,7 @@ code {
   .layout {
     grid-template-columns: 1fr;
     grid-auto-rows: max-content;
+    overflow-x: hidden;
     overflow-y: auto;
   }
   .col-left,
@@ -3199,6 +3202,10 @@ code {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-thumb-hover);
   background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Draft analysis: decisions first, supporting measurements on demand. */
