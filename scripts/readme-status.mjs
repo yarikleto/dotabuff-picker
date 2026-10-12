@@ -285,10 +285,10 @@ function coversText(row) {
   return null;
 }
 
-export function badgeBlock({ rows, patch, heroes, links }) {
+export function badgeBlock({ rows, patch, heroes, links, snapshot = true }) {
   const oldest = oldestRead(rows);
 
-  const top = [
+  const top = snapshot ? [
     badge({
       label: "data patch",
       message: patch.label,
@@ -304,7 +304,7 @@ export function badgeBlock({ rows, patch, heroes, links }) {
       alt: collectedAlt(oldest),
     }),
     badge({ label: "heroes", message: String(heroes), color: COLORS.neutral }),
-  ];
+  ] : [];
   const bottom = [
     badge({
       label: "data",
@@ -335,7 +335,7 @@ export function badgeBlock({ rows, patch, heroes, links }) {
     );
   }
 
-  const lines = ["<p>", ...top.map((b) => `  ${b}`), "  <br>", ...bottom.map((b) => `  ${b}`), "</p>"];
+  const lines = ["<p>", ...top.map((b) => `  ${b}`), ...(top.length ? ["  <br>"] : []), ...bottom.map((b) => `  ${b}`), "</p>"];
   if (links.site) {
     lines.push("", `<h3><a href="${escapeHtml(links.site)}">Open the picker →</a></h3>`);
   }
@@ -399,4 +399,22 @@ export function replaceBlock(text, name, body) {
   const pattern = new RegExp(`(<!-- ${name}:start[^>]*-->)[\\s\\S]*?(<!-- ${name}:end -->)`);
   if (!pattern.test(text)) throw new Error(`README.md has no <!-- ${name}:start --> … <!-- ${name}:end --> block`);
   return text.replace(pattern, (_, start, end) => `${start}\n${body}\n${end}`);
+}
+
+/** README content describes sources, without a snapshot of collected data. */
+export function overviewBadges(links) {
+  return badgeBlock({ rows: [], links, snapshot: false });
+}
+
+export function overviewTable() {
+  return [
+    "| Data | Source | Purpose |",
+    "| --- | --- | --- |",
+    "| Counters | Dotabuff | Hero matchup advantages |",
+    "| Positions by rank | STRATZ | Position usage and win rates by rank |",
+    "| Lanes by seat | STRATZ | Lane outcomes by hero and position |",
+    "| Synergies | OpenDota | Hero pair performance by farm priority |",
+    "| Game length | OpenDota | Hero performance at different game lengths |",
+    "| Win model | OpenDota | Draft win-chance calibration |",
+  ].join("\n");
 }

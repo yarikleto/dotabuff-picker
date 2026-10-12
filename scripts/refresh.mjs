@@ -169,17 +169,16 @@ const STEPS = [
   },
   {
     key: "readme",
-    what: "the README's badges and data table, from the files above",
+    what: "the README source overview and project links",
     script: "readme.mjs",
     args: [],
-    // Joins any run that includes another step, --steps or not: the commit that
-    // carries new numbers has to carry the README that describes them.
+    // Keep the source overview and project links consistent on every run.
     trailing: true,
     describe: async () => {
       try {
-        const readme = await readFile(join(ROOT, "README.md"), "utf8");
-        const patch = readme.match(/alt="Data patch: ([^"]+)"/)?.[1];
-        return patch ? { detail: `data patch ${patch}`, at: null } : null;
+        await readFile(join(ROOT, "README.md"), "utf8");
+
+        return { detail: "source overview and project links", at: null };
       } catch {
         return null;
       }

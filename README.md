@@ -2,13 +2,8 @@
 
 <img src="docs/assets/banner.jpg" alt="Dota 2 Draft Picker — counter-picks, synergies and lane matchups for every pick and ban" width="100%">
 
-<!-- badges:start — written by `npm run readme` from public/data; change scripts/readme-status.mjs, not this block -->
+<!-- badges:start — written by `npm run readme` from the source overview and project links; change scripts/readme-status.mjs, not this block -->
 <p>
-  <img alt="Data patch: 7.41e – 7.41f" src="https://img.shields.io/badge/data_patch-7.41e_%E2%80%93_7.41f-c9a227?style=flat-square&amp;logo=dota2&amp;logoColor=white">
-  <a href="https://www.dota2.com/patches"><img alt="Latest Dota 2 patch" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fwww.dota2.com%2Fdatafeed%2Fpatchnoteslist%3Flanguage%3Denglish&amp;query=%24.patches%5B-1%3A%5D.patch_number&amp;label=latest+Dota+patch&amp;color=3b4654&amp;style=flat-square&amp;logo=dota2&amp;logoColor=white&amp;cacheSeconds=3600"></a>
-  <img alt="Data collected Oct 10, 2026" src="https://img.shields.io/badge/collected-Oct_10%2C_2026-3b4654?style=flat-square">
-  <img alt="heroes: 127" src="https://img.shields.io/badge/heroes-127-3b4654?style=flat-square">
-  <br>
   <a href="#the-data"><img alt="Data from Dotabuff, STRATZ and OpenDota" src="https://img.shields.io/badge/data-Dotabuff_%C2%B7_STRATZ_%C2%B7_OpenDota-3b4654?style=flat-square"></a>
   <a href="#license"><img alt="Code license: MIT" src="https://img.shields.io/badge/code_license-MIT-3b4654?style=flat-square"></a>
   <a href="https://github.com/yarikleto/dotabuff-picker/actions/workflows/pages.yml"><img alt="Site deploy status" src="https://img.shields.io/github/actions/workflow/status/yarikleto/dotabuff-picker/pages.yml?branch=main&amp;label=site&amp;style=flat-square&amp;logo=github"></a>
@@ -50,9 +45,8 @@ enemy most wants next. It runs in the browser, with nothing to install.
 - **Rebalance** — the same five heroes in better seats, when a reshuffle beats a
   new pick.
 - **Win chance** — the board as one calibrated figure: a model whose weights are
-  fitted on real ranked games at every refresh, so a 38% means drafts like it
-  won about 38% of the time. Five cores and no supports reads 16% — you are
-  being run over (calibration of Sep 23, 2026).
+  fitted on real ranked games at every refresh, to estimate how often similar drafts win. Unbalanced
+  line-ups, such as five cores with no supports, are penalized.
 
 Every figure is damped by its own sample size before it counts for anything.
 The derivation, the weights and the known blind spots are in
@@ -60,24 +54,21 @@ The derivation, the weights and the known blind spots are in
 
 ## The data
 
-<!-- data:start — written by `npm run readme` from public/data; change scripts/readme-status.mjs, not this block -->
-| Data | Source | Covers | Sample | Patch |
-| --- | --- | --- | --- | --- |
-| Counters | Dotabuff | read Oct 10, 2026 | 16,002 hero pairs | — |
-| Positions by rank | STRATZ | Sep 10 – Oct 7, 2026 | 2.3 million ranked matches | 7.41e – 7.41f |
-| Lanes by seat | STRATZ | Sep 10 – Oct 7, 2026 | 49,683 lane pairings | 7.41e – 7.41f |
-| Synergies | OpenDota | Oct 9 – Oct 10, 2026 | 361,854 matches | 7.41f |
-| Game length | OpenDota | Oct 9 – Oct 10, 2026 | 593,705 matches | 7.41f |
-| Win model | OpenDota | Oct 8 – Oct 9, 2026 | 418,056 matches | 7.41f |
+<!-- data:start — written by `npm run readme` from the source overview and project links; change scripts/readme-status.mjs, not this block -->
+| Data | Source | Purpose |
+| --- | --- | --- |
+| Counters | Dotabuff | Hero matchup advantages |
+| Positions by rank | STRATZ | Position usage and win rates by rank |
+| Lanes by seat | STRATZ | Lane outcomes by hero and position |
+| Synergies | OpenDota | Hero pair performance by farm priority |
+| Game length | OpenDota | Hero performance at different game lengths |
+| Win model | OpenDota | Draft win-chance calibration |
 <!-- data:end -->
 
-**Data patch** is worked out from the windows above against Valve's patch list:
-green when all of it comes from one patch, gold across letter patches of one
-version, orange across a major patch, red once Valve had shipped a newer patch
-than any in the data. **Latest Dota patch** beside it is read live from Valve
-on every view, so the day a patch lands the two badges disagree until the data
-is refreshed. The Dotabuff collector does not record the date range behind the
-matchup pages, so counters carry no patch of their own.
+The picker reads the committed files in `public/data/`. Check the app's data
+status and the files' metadata for collection dates, sample sizes and coverage.
+These change with each refresh and are not duplicated here. Dotabuff's matchup
+pages do not provide a recorded date range for the counters.
 
 ## Using it
 
@@ -125,7 +116,7 @@ page, in any browser. How it reads a sentence:
 
 ## Updating the data
 
-After a patch, or whenever the badges above disagree:
+After a patch, or when the app shows aging data:
 
 ```bash
 npm run refresh
@@ -136,8 +127,8 @@ git push
 
 `refresh` brings the hero roster up to date, runs every collector — counters
 from Dotabuff, positions and lane outcomes from STRATZ, synergies and game
-lengths from OpenDota, portraits from Valve — and then rewrites the badges and
-the table above from what they wrote. A failing step does not stop the others,
+lengths from OpenDota, portraits from Valve — and refits the win-chance model. The final README step checks the
+source overview and project links; it does not copy data snapshots. A failing step does not stop the others,
 an interrupted one picks up from its own cache, and the summary lists the age
 of every file and the exact command that retries what failed. The push
 publishes the site.
@@ -170,7 +161,7 @@ build is relative: [docs/website.md](docs/website.md).
 ## Development
 
 ```bash
-npm test                # parsers, collectors, the scoring engine, typed commands, the README blocks
+npm test                # parsers, collectors, the scoring engine, typed commands, the README overview
 npm run build           # typecheck + production bundle
 npm run readme:images   # re-render the banner and the screenshot
 ```
@@ -206,8 +197,8 @@ scripts/timings.mjs          win rate by game length, same pipeline (unit-tested
 scripts/positions.mjs        STRATZ position counts for three rank bands (unit-tested)
 scripts/lanes.mjs            STRATZ lane outcomes: weeks, caching, folding (unit-tested)
 scripts/stratz.mjs           STRATZ client: token, pacing, hero ids, weeks (unit-tested)
-scripts/readme.mjs           the README's badges and data table, from public/data
-scripts/readme-status.mjs    patch spans, badges, the table (pure, unit-tested)
+scripts/readme.mjs           the README source overview and project links
+scripts/readme-status.mjs    README formatting and data summaries (pure, unit-tested)
 scripts/readme-images.mjs    renders docs/assets/banner.jpg and screenshot.jpg
 scripts/app-scheme.mjs       app:// URL -> file in dist/ for readme-images (pure, unit-tested)
 src/lib/scoring.ts           matchup and synergy maths, lane weighting, the ranking

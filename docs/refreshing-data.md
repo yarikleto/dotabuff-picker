@@ -21,14 +21,13 @@ steps is misbehaving and you want to drive it by hand.
 | `lanes` | STRATZ `heroStats.laneOutcome` | `public/data/lanes.json` | Needs a free API token — [see below](#the-stratz-token) |
 | `portraits` | Valve's CDN | `public/heroes/*.png` | No |
 | `calibrate` | OpenDota `public_matches`, the files above | `public/data/calibration.json` | No |
-| `readme` | the files above, Valve's patch list | the badges and data table in `README.md` | No |
+| `readme` | source descriptions, project links | the stable source overview in `README.md` | No |
 
 They run in that order: the synergy pass reads positions out of `positions.json`,
 or out of `matchups.json` when that file is missing, and `calibrate` fits the
 win-chance model on the files every step before it wrote, from games older than
 the synergy and timing samples. `readme` goes last and joins
-any run that includes another step, `--steps` or not, so the README always
-describes the files beside it; `--skip=readme` leaves it out.
+any run that includes another step, `--steps` or not, to check the source overview and project links; `--skip=readme` leaves it out.
 A failing step does not stop the rest, an interrupted step picks up from its
 own cache, and the exit code is non-zero if anything failed. Every step
 collects current data on every run: the OpenDota passes continue a saved run
@@ -56,16 +55,15 @@ remembered it was a separate script.
    be minutes old. A `FAIL` line is followed by the command that retries just
    that step; [When something fails](#when-something-fails) says why steps fail.
 3. **Check the numbers.** `npm run scrape -- --recompute-roles` prints positions
-   for heroes nobody argues about ([Verify](#verify)). Then `git diff README.md`:
-   the table should show the new windows and sample sizes close to the previous
+   for heroes nobody argues about ([Verify](#verify)). Check the data files' metadata for updated windows and sample sizes close to the previous
    ones. A sample that halved is a collection that broke part-way, not a quiet
    week.
 4. **Look at new heroes.** When `roster` added one, `git diff src/data/heroes.ts`
    shows the entry: its slug should match the hero's Dotabuff URL, and
    `public/heroes/<slug>.png` should exist.
 5. **Test and build.** `npm test && npm run build`. `npm test` also fails when
-   `README.md` no longer describes the files in `public/data/`; `npm run readme`
-   brings it back in line.
+   the README source overview or project links need regeneration;
+   `npm run readme` brings them back in line.
 6. **Commit and push.**
 
    ```bash
@@ -78,8 +76,7 @@ remembered it was a separate script.
    site's top bar moves — see [website.md](website.md#publishing-new-data).
 
 **Right after a major patch** the two STRATZ steps still read the last four
-complete weeks, mostly from the previous version, and the README's data patch
-badge turns orange to say so. `npm run refresh -- --weeks=1` narrows both to the
+complete weeks, mostly from the previous version, so check the period recorded in each data file. `npm run refresh -- --weeks=1` narrows both to the
 last complete week once the new patch has one, at a quarter of the sample; the
 app damps thin readings by their sample size either way. Dotabuff and OpenDota
 follow the game on their own.

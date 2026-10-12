@@ -1,6 +1,6 @@
 ---
 name: refresh-data
-description: Refresh, verify and publish this repository's draft-picker data — the hero roster, Dotabuff counters, STRATZ positions and lane outcomes, OpenDota synergies and game lengths, hero portraits and the README's data badges — with `npm run refresh`, then commit it for the GitHub Pages site. Use when asked to update or refresh the data or the heroes, after a Dota 2 patch or a new hero, when the README's data patch badge disagrees with the latest patch, or when the site shows old numbers.
+description: Refresh, verify and publish this repository's draft-picker data — the hero roster, Dotabuff counters, STRATZ positions and lane outcomes, OpenDota synergies and game lengths, hero portraits and the README source overview — with `npm run refresh`, then commit it for the GitHub Pages site. Use when asked to update or refresh the data or the heroes, after a Dota 2 patch or a new hero, when the app shows aging data, or when the site shows old numbers.
 ---
 
 # Refresh the picker's data
@@ -65,8 +65,7 @@ replaces any browser-driven Dotabuff scraping skill.
    - `calibrate` "failed its checks" → it names the check and leaves the old
      `calibration.json`; retry once the OpenDota steps are `ok`, and never edit
      the file or loosen a guardrail to get past it.
-   - `readme` could not reach Valve or OpenDota → retry `npm run readme` later.
-     Until then the README says "unknown" where the lookup failed.
+   - `readme` failed → retry `npm run readme`; it runs offline.
 4. **Verify against the files, not the summary.** Quote these figures in the
    report:
    - `npm run scrape -- --recompute-roles` ends with a sanity line close to
@@ -76,21 +75,17 @@ replaces any browser-driven Dotabuff scraping skill.
    - The matchups check from `docs/refreshing-data.md#verify`: as many heroes as
      `src/data/heroes.ts` lists, close to n × (n − 1) cells for n heroes
      (16,002 for 127), and every hero with positions.
-   - `git diff README.md`: each row's window has moved forward and each sample
-     is in the range it was before. A sample that halved is a collection that
-     broke part-way — retry that step instead of committing.
-   - The data patch badge's label and colour. Gold (letter patches of one
-     version) is normal. Orange right after a major patch is expected, see
-     below. Red means the data predates the latest patch: something did not
-     refresh.
-   - After a run that included `calibrate`, re-read the figures quoted in docs/scoring.md "Win chance" and README's Win chance bullet against public/data/calibration.json and update them.
+   - Check each data file's metadata: windows should move forward and samples
+     should remain comparable. Retry a step whose sample unexpectedly halved.
+   - After `calibrate`, check the figures in docs/scoring.md against
+     public/data/calibration.json. Keep snapshot figures out of README.md.
 5. **Check new heroes.** When `git diff src/data/heroes.ts` shows an entry, its
    slug should be the hero's name the way Dotabuff writes it in
    `dotabuff.com/heroes/<slug>` (lowercase, hyphenated), and
    `public/heroes/<slug>.png` should exist. Name the new heroes in the report.
 6. **Test and build.** `npm test && npm run build`. Both must pass. `npm test`
    includes `scripts/readme-sync.test.mjs`, which fails when README.md no
-   longer describes `public/data/` — the fix is `npm run readme`, never an edit
+   longer matches the stable source overview and project links — the fix is `npm run readme`, never an edit
    to the test or the blocks.
 7. **Commit the data and what describes it, nothing else.**
 

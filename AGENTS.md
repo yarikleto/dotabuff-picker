@@ -13,7 +13,7 @@ npm test                # scripts/ and src/lib/ under node --test
 npm run build           # typecheck + production bundle into dist/
 npm run refresh         # recollect every data set, then the README blocks
 npm run calibrate -- --dry-run   # fit and report the win-chance model without writing (refresh -- --steps=calibrate writes it)
-npm run readme          # the README blocks alone, from public/data/
+npm run readme          # the README blocks alone, from the source overview and project links
 npm run readme:images   # re-render docs/assets/banner.jpg and screenshot.jpg
 ```
 
@@ -34,7 +34,8 @@ npm run readme:images   # re-render docs/assets/banner.jpg and screenshot.jpg
   `<!-- data:start … -->` and their `:end` markers are written by
   `npm run readme`; change `scripts/readme-status.mjs`, not the blocks.
   `scripts/readme-sync.test.mjs` fails `npm test`, and with it the deploy,
-  whenever they no longer describe `public/data/`.
+  whenever the source overview or project links need regeneration.
+  Keep collection dates, patch labels, hero counts and sample sizes out of the README.
 
 ## Code
 
